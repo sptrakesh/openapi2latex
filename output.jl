@@ -69,11 +69,56 @@ function security_schemes(c::Components)::String
 """
 end
 
-function generate(o::OpenAPI, fp::String, author::String, input::String)
-    collect_tags!(o)
-    collect_paths!(o, input)
+function latex(schema::Schema, key::String, f::IOStream)
+    @debug "Writing output for schema $key"
+    id = "schema:$(key)"
+    write(f, "\n\\chapter{\\label{$id}$key}\n")
+    if !isempty(schema.summary) write(f, "\\begin{quote}$(convert(schema.summary))\\end{quote}\n") end
+    if !isempty(schema.description) write(f, "$(convert(schema.description))\n") end
+    if isempty(schema.properties) return end
 
+    function required(name::String)
+        for r in schema.required
+            if r == name return true end
+        end
+        false
+    end
+
+    for (name, prop) in schema.properties
+        pid = "$id:$name"
+        write(f, "\\section{\\label{$pid}$name}\n")
+        if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
+        if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
+
+        write(f, """\\begin{table}[ht]
+\\centering
+\\begin{tabular}{|l|l|}
+\\hline Type & $(prop.type) \\\\
+\\hline Required & $(required(name)) \\\\
+\\hline Default & $(prop.default) \\\\
+\\hline Example & $(prop.example) \\\\
+\\hline
+\\end{tabular}
+\\caption{Properties for $name}
+\\end{table}
+""")
+    end
+end
+
+function generate!(o::OpenAPI, args::Dict{String,Any})
+    collect_tags!(o)
+    collect_paths!(o, args["input"])
+    schemas = collect_schemas!(o, args["input"])
+    tags = collect_tag_paths(o)
+
+    author = args["author"]
     head = """\\input{$(pwd())/structure.tex}
+
+\\pagestyle{fancy}
+\\lhead{\\textsf{\\textbf{OpenAPI2\\LaTeX}}}
+\\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
+\\lfoot{\\textsf{\\textbf{Version $(o.info.version)}}}
+\\rfoot{\\textsf{\\textbf{Proprietary and Confidential}}}
 
 \\title{$(o.info.title)}
 \\author{$(author)}
@@ -94,7 +139,7 @@ function generate(o::OpenAPI, fp::String, author::String, input::String)
 \\clearpage
 \\mainmatter
 \\chapter{Information}
-\\epigraph{$(o.info.summary)}
+\\begin{quote}$(convert(o.info.summary))\\end{quote}
 
 $(o.info.description)
 
@@ -107,13 +152,44 @@ $(security_schemes(o.components))
 \\part{Endpoints}
 """
 
-    open(fp, "w") do f
+    open(args["output"], "w") do f
         write(f, head)
+        oplabels = Dict{String,String}()
 
-        for t in o.tags
-            write(f, "\n\\chapter{$(t.name)}\n")
-            if !isempty(t.description) write(f, "\\epigraph{$(t.description)}\n") end
+        function op(o::Operation)
+            if !isempty(o.operationId)
+                if haskey(oplabels, o.operationId)
+                    write(f, "\n\\section*{$(o.operationId)}\n")
+                    write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}")
+                else
+                    id = "opertion:$(o.operationId)"
+                    write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
+                    if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+                    if !isempty(o.description) write(f, "$(convert(o.description))\n") end
+                    oplabels[o.operationId] = id
+                end
+            end
         end
+
+        for tag in o.tags
+            @debug "Adding operations for tag $(tag.name)"
+            write(f, "\n\\chapter{$(tag.name)}\n")
+            if !isempty(tag.description) write(f, "\\begin{quote}$(tag.description)\\end{quote}\n") end
+            if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
+            for pi in tags[tag.name]
+                op(pi.get)
+                op(pi.put)
+                op(pi.post)
+                op(pi.delete)
+                op(pi.options)
+                op(pi.head)
+                op(pi.patch)
+                op(pi.trace)
+            end
+        end
+
+        write(f, "\\part{Schemas}")
+        for (key,schema) in schemas latex(schema, key, f) end
 
         write(f, """\\backmatter
 \\bibliography{bibliography} % Use the bibliography.bib file for the bibliography

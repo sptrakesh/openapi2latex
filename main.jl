@@ -38,7 +38,7 @@ function main()
     end
     spec = load_all_file(args["input"]; dicttype=Dict{Any,Any})
     api = model.parse(spec)
-    model.generate(api, args["output"], args["author"], args["input"])
+    model.generate!(api, args)
 end
 
 main()

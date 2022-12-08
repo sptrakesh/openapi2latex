@@ -91,7 +91,11 @@ function convert_style(line::String, delim::String, cmd::String)::String
         out = "$(SubString(line, start, r1)) $(SubString(line, r2))"
     else
         e2 = length(e) > 1 ? e[2] + 1 : e[1] + length(delim)
-        out = "$(SubString(line, start, r1))$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
+        if start == r1
+            out = "$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
+        else
+            out = "$(SubString(line, start, r1))$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
+        end
     end
 
     return convert_style(out, delim, cmd)
