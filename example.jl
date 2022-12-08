@@ -7,7 +7,7 @@ end
 
 Example() = Example("", "", Nothing, URI())
 
-function parse!(e::Example, data::Dict{Any,Any})
+function parse!(e::Example, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "summary" e.summary = value end
         if key == "description" e.description = convert(value) end
@@ -16,7 +16,7 @@ function parse!(e::Example, data::Dict{Any,Any})
     end
 end
 
-function parse!(e::Dict{String,Example}, data::Dict{Any,Any})
+function parse!(e::OrderedDict{String,Example}, data::OrderedDict{Any,Any})
     for (key,value) in data
         ex = Example()
         parse!(ex, value)

@@ -4,7 +4,7 @@ end
 
 SecurityRequirement() = SecurityRequirement(Vector{String}())
 
-function parse!(s::SecurityRequirement, data::Dict{Any,Any})
+function parse!(s::SecurityRequirement, data::OrderedDict{Any,Any})
     for (key, value) in data
         if key == "name"
             for v in value push!(s.name, v) end
@@ -12,7 +12,7 @@ function parse!(s::SecurityRequirement, data::Dict{Any,Any})
     end
 end
 
-function parse!(s::Vector{SecurityRequirement}, data::Vector{Dict{Any,Any}})
+function parse!(s::Vector{SecurityRequirement}, data::Vector{OrderedDict{Any,Any}})
     for d in data
         sr = SecurityRequirement()
         parse!(sr, d)
@@ -24,12 +24,12 @@ mutable struct OAuthFlow <: Comparable
     authorizationUrl::URI
     tokenUrl::URI
     refreshUrl::URI
-    scopes::Dict{String,String}
+    scopes::OrderedDict{String,String}
 end
 
-OAuthFlow() = OAuthFlow(URI(), URI(), URI(), Dict{String,String}())
+OAuthFlow() = OAuthFlow(URI(), URI(), URI(), OrderedDict{String,String}())
 
-function parse!(o::OAuthFlow, data::Dict{Any,Any})
+function parse!(o::OAuthFlow, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "authorizationUrl" o.authorizationUrl = URI(value) end
         if key == "tokenUrl" o.authorizationUrl = URI(value) end
@@ -49,7 +49,7 @@ end
 
 OAuthFlows() = OAuthFlows(OAuthFlow(), OAuthFlow(), OAuthFlow(), OAuthFlow())
 
-function parse!(o::OAuthFlows, data::Dict{Any,Any})
+function parse!(o::OAuthFlows, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "implicit" parse!(o.implicit, value) end
         if key == "password" parse!(o.password, value) end
@@ -72,7 +72,7 @@ end
 
 SecurityScheme() = SecurityScheme("", "", "", "", "", "", "", OAuthFlows(), URI())
 
-function parse!(s::SecurityScheme, data::Dict{Any,Any})
+function parse!(s::SecurityScheme, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "\$ref" s.ref = value end
         if key == "type" s.type = value end
@@ -86,7 +86,7 @@ function parse!(s::SecurityScheme, data::Dict{Any,Any})
     end
 end
 
-function parse!(s::Vector{SecurityRequirement}, data::Vector{Dict{Any,Any}})
+function parse!(s::Vector{SecurityRequirement}, data::Vector{OrderedDict{Any,Any}})
     for d in data
         sr = SecurityRequirement()
         parse!(sr, d)

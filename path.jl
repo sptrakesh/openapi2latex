@@ -1,13 +1,13 @@
 mutable struct RequestBody <: Comparable
     ref::String
     description::String
-    content::Dict{String,MediaType}
+    content::OrderedDict{String,MediaType}
     required::Bool
 end
 
-RequestBody() = RequestBody("", "", Dict{String,MediaType}(), false)
+RequestBody() = RequestBody("", "", OrderedDict{String,MediaType}(), false)
 
-function parse!(r::RequestBody, data::Dict{Any,Any})
+function parse!(r::RequestBody, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "\$ref" p.ref = value end
         if key == "desription" r.description = convert(value) end
@@ -16,7 +16,7 @@ function parse!(r::RequestBody, data::Dict{Any,Any})
     end
 end
 
-function parse!(r::RequestBody, data::Dict{Any,Any})
+function parse!(r::RequestBody, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "\$ref" p.ref = value end
         if key == "desription" r.description = convert(value) end
@@ -28,15 +28,15 @@ end
 mutable struct Link <: Comparable
     operationRef::String
     operationId::String
-    parameters::Dict{String,Any}
+    parameters::OrderedDict{String,Any}
     requestBody::Any
     description::String
     server::Server
 end
 
-Link() = Link("", "", Dict{String,Any}(), Nothing, "", Server())
+Link() = Link("", "", OrderedDict{String,Any}(), Nothing, "", Server())
 
-function parse!(l::Link, data::Dict{Any,Any})
+function parse!(l::Link, data::OrderedDict{Any,Any})
     for (key,value) in data
     if key == "operationRef" l.operationRef = value end
     if key == "operationId" l.operationId = value end
@@ -47,7 +47,7 @@ function parse!(l::Link, data::Dict{Any,Any})
     end
 end
 
-function parse!(l::Dict{String,Link}, data::Dict{Any,Any})
+function parse!(l::OrderedDict{String,Link}, data::OrderedDict{Any,Any})
     for (key,value) in data
         lnk = Link()
         parse!(lnk, value)
@@ -57,14 +57,14 @@ end
 
 mutable struct Response <: Comparable
     description::String
-    headers::Dict{String,Header}
-    content::Dict{String,MediaType}
-    links::Dict{String,Link}
+    headers::OrderedDict{String,Header}
+    content::OrderedDict{String,MediaType}
+    links::OrderedDict{String,Link}
 end
 
-Response() = Response("", Dict{String,Header}(), Dict{String,MediaType}(), Dict{String,Link}())
+Response() = Response("", OrderedDict{String,Header}(), OrderedDict{String,MediaType}(), OrderedDict{String,Link}())
 
-function parse!(r::Response, data::Dict{Any,Any})
+function parse!(r::Response, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "description" r.description = value end
         if key == "headers" parse!(r.headers, value) end
@@ -73,7 +73,7 @@ function parse!(r::Response, data::Dict{Any,Any})
     end
 end
 
-function parse!(r::Dict{String,Response}, data::Dict{Any,Any})
+function parse!(r::OrderedDict{String,Response}, data::OrderedDict{Any,Any})
     for (key,value) in data
         res = Response()
         parse!(res, value)
@@ -89,18 +89,18 @@ mutable struct Operation{PI<:CircularReference} <: Comparable
     operationId::String
     parameters::Vector{Parameter}
     requestBody::RequestBody
-    responses::Dict{String,Response}
-    callbacks::Dict{String,PI}
+    responses::OrderedDict{String,Response}
+    callbacks::OrderedDict{String,PI}
     deprecated::Bool
     security::Vector{SecurityRequirement}
     servers::Vector{Server}
 end
 
 Operation() = Operation(Vector{String}(), "", "", ExternalDocumentation(), "", Vector{Parameter}(),
-    RequestBody(), Dict{String,Response}(), Dict{String,PathItem}(), false,
+    RequestBody(), OrderedDict{String,Response}(), OrderedDict{String,PathItem}(), false,
     Vector{SecurityRequirement}(), Vector{Server}())
 
-function parse!(o::Operation, data::Dict{Any,Any})
+function parse!(o::Operation, data::OrderedDict{Any,Any})
     for (key, value) in data
         if key == "tags"
             for v in value push!(o.tags, v) end
@@ -133,13 +133,13 @@ mutable struct PathItem <: CircularReference
     trace::Operation
     servers::Vector{Server}
     parameters::Vector{Parameter}
-    codeSamples::Vector{Dict{String,Any}}
+    codeSamples::Vector{OrderedDict{String,Any}}
 end
 
 PathItem() = PathItem("", "", "", Operation(), Operation(), Operation(), Operation(), Operation(),
-    Operation(), Operation(), Operation(), Vector{Server}(), Vector{Parameter}(), Vector{Dict{String,Any}}())
+    Operation(), Operation(), Operation(), Vector{Server}(), Vector{Parameter}(), Vector{OrderedDict{String,Any}}())
 
-function parse!(p::PathItem, data::Dict{Any,Any})
+function parse!(p::PathItem, data::OrderedDict{Any,Any})
     for (key, value) in data
         if key == "\$ref" p.ref = value end
         if key == "summary" p.summary = value end
@@ -157,7 +157,7 @@ function parse!(p::PathItem, data::Dict{Any,Any})
         if key == "x-codeSamples"
             @info "x-codeSamples with type $(typeof(value))"
             for cs in value
-                d = Dict{String,Any}()
+                d = OrderedDict{String,Any}()
                 for (k,v) in cs d["$k"] = v end
                 push!(p.codeSamples, d)
             end

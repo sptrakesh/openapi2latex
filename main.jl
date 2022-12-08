@@ -37,7 +37,7 @@ function main()
         MiniLogger(minlevel = MiniLoggers.Info,
                format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
     end
-    spec = load_all_file(args["input"]; dicttype=Dict{Any,Any})
+    spec = load_all_file(args["input"]; dicttype=OrderedDict{Any,Any})
     api = model.parse(spec)
     model.generate!(api, args)
 end

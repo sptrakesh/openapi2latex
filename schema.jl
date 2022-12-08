@@ -1,11 +1,11 @@
 mutable struct Discriminator <: Comparable
     propertyName::String
-    mapping::Dict{String,String}
+    mapping::OrderedDict{String,String}
 end
 
-Discriminator() = Discriminator("", Dict{String,String}())
+Discriminator() = Discriminator("", OrderedDict{String,String}())
 
-function parse!(d::Discriminator, data::Dict{Any,Any})
+function parse!(d::Discriminator, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "propertyName" s.propertyName = value end
         if key == "mapping"
@@ -24,7 +24,7 @@ end
 
 XML() = XML("", "", "", false, false)
 
-function parse!(x::XML, data::Dict{Any,Any})
+function parse!(x::XML, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "name" s.name = value end
         if key == "namespace" s.namespace = value end
@@ -46,7 +46,7 @@ end
 
 Property() = Property("", "", "", "", "", "", Vector{String}())
 
-function parse!(p::Property, data::Dict{Any,Any})
+function parse!(p::Property, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "\ref" p.ref = value end
         if key == "type" p.type = value end
@@ -60,7 +60,7 @@ function parse!(p::Property, data::Dict{Any,Any})
     end
 end
 
-function parse!(p::Dict{String,Property}, data::Dict{Any,Any})
+function parse!(p::OrderedDict{String,Property}, data::OrderedDict{Any,Any})
     for (key,value) in data
         pr = Property()
         parse!(pr, value)
@@ -77,12 +77,14 @@ mutable struct Schema <: Comparable
     summary::String
     description::String
     required::Vector{String}
-    properties::Dict{String,Property}
+    properties::OrderedDict{String,Property}
+    allOf::Vector{Any}
 end
 
-Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "", Vector{String}(), Dict{String,Property}())
+Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "",
+    Vector{String}(), OrderedDict{String,Property}(), Vector{Any}())
 
-function parse!(s::Schema, data::Dict{Any,Any})
+function parse!(s::Schema, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "discriminator" parse!(s.discriminator, value) end
         if key == "xml" parse!(s.xml, value) end
@@ -95,5 +97,20 @@ function parse!(s::Schema, data::Dict{Any,Any})
             for r in value push!(s.required, r) end
         end
         if key == "properties" parse!(s.properties, value) end
+        if key == "allOf"
+            s.allOf = value
+            for v in value
+                if v isa OrderedDict{Any,Any}
+                    sc = Schema()
+                    parse!(sc, v)
+                    if isempty(s.ref) s.ref = sc.ref end
+                    if isempty(s.type) s.type = sc.type end
+                    if isempty(s.summary) s.summary = sc.summary end
+                    if isempty(s.description) s.description = sc.description end
+                    if isempty(s.required) s.required = sc.required end
+                    for (k,v) in sc.properties s.properties[k] = v end
+                end
+            end
+        end
     end
 end

@@ -6,7 +6,7 @@ end
 
 ServerVariable() = ServerVariable(Vector{String}(), "", "")
 
-function parse!(s::ServerVariable, data::Dict{Any,Any})
+function parse!(s::ServerVariable, data::OrderedDict{Any,Any})
     for (key, value) in data
         if key == "enum"
             for v in value push!(s.enum, v) end
@@ -19,12 +19,12 @@ end
 mutable struct Server <: Comparable
     url::URI
     description::String
-    variables::Dict{String,ServerVariable}
+    variables::OrderedDict{String,ServerVariable}
 end
 
-Server() = Server(URI(), "", Dict{String,ServerVariable}())
+Server() = Server(URI(), "", OrderedDict{String,ServerVariable}())
 
-function parse!(s::Server, data::Dict{Any,Any})
+function parse!(s::Server, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "url" s.url = URI(value) end
         if key == "description" s.description = value end
@@ -38,7 +38,7 @@ function parse!(s::Server, data::Dict{Any,Any})
     end
 end
 
-function parse!(s::Vector{Server}, data::Vector{Dict{Any,Any}})
+function parse!(s::Vector{Server}, data::Vector{OrderedDict{Any,Any}})
     for d in data
         srv = Server()
         parse!(srv, d)

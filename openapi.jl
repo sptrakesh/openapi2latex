@@ -9,7 +9,7 @@ end
 
 Tag() = Tag("", "", ExternalDocumentation())
 
-function parse!(t::Tag, data::Dict{Any,Any})
+function parse!(t::Tag, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "name" t.name = value end
         if key == "description" t.description = convert(value) end
@@ -17,7 +17,7 @@ function parse!(t::Tag, data::Dict{Any,Any})
     end
 end
 
-function parse!(v::Vector{Tag}, data::Vector{Dict{Any,Any}})
+function parse!(v::Vector{Tag}, data::Vector{OrderedDict{Any,Any}})
     for d in data
         t = Tag()
         parse!(t, d)
@@ -26,19 +26,19 @@ function parse!(v::Vector{Tag}, data::Vector{Dict{Any,Any}})
 end
 
 mutable struct Components <: Comparable
-    schemas::Dict{String,Schema}
-    responses::Dict{String,Response}
-    parameters::Dict{String,Parameter}
-    examples::Dict{String,Example}
-    requestBodies::Dict{String,RequestBody}
-    headers::Dict{String,Header}
-    securitySchemes::Dict{String,SecurityScheme}
+    schemas::OrderedDict{String,Schema}
+    responses::OrderedDict{String,Response}
+    parameters::OrderedDict{String,Parameter}
+    examples::OrderedDict{String,Example}
+    requestBodies::OrderedDict{String,RequestBody}
+    headers::OrderedDict{String,Header}
+    securitySchemes::OrderedDict{String,SecurityScheme}
 end
 
-Components() = Components(Dict{String,Schema}(), Dict{String,Response}(), Dict{String,Parameter}(),
-    Dict{String,Example}(), Dict{String,RequestBody}(), Dict{String,Header}(), Dict{String,SecurityScheme}())
+Components() = Components(OrderedDict{String,Schema}(), OrderedDict{String,Response}(), OrderedDict{String,Parameter}(),
+    OrderedDict{String,Example}(), OrderedDict{String,RequestBody}(), OrderedDict{String,Header}(), OrderedDict{String,SecurityScheme}())
 
-function parse!(c::Components, data::Dict{Any,Any})
+function parse!(c::Components, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "schemas"
             for (k,v) in value
@@ -99,7 +99,7 @@ end
 
 TagGroup() = TagGroup("", Vector{String}())
 
-function parse!(t::TagGroup, data::Dict{Any,Any})
+function parse!(t::TagGroup, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "name" t.name = value end
         if key == "tags"
@@ -108,7 +108,7 @@ function parse!(t::TagGroup, data::Dict{Any,Any})
     end
 end
 
-function parse!(t::Vector{TagGroup}, data::Vector{Dict{Any,Any}})
+function parse!(t::Vector{TagGroup}, data::Vector{OrderedDict{Any,Any}})
     for d in data
         tg = TagGroup()
         parse!(tg, d)
@@ -121,8 +121,8 @@ mutable struct OpenAPI <: Comparable
     info::Info
     jsonSchemaDialect::String
     servers::Vector{Server}
-    paths::Dict{String,PathItem}
-    webhooks::Dict{String,PathItem}
+    paths::OrderedDict{String,PathItem}
+    webhooks::OrderedDict{String,PathItem}
     components::Components
     security::Vector{SecurityRequirement}
     tags::Vector{Tag}
@@ -130,7 +130,7 @@ mutable struct OpenAPI <: Comparable
     tagGroups::Vector{TagGroup}
 end
 
-OpenAPI() = OpenAPI("", Info(), "", Vector{Server}(), Dict{String,PathItem}(), Dict{String,PathItem}(),
+OpenAPI() = OpenAPI("", Info(), "", Vector{Server}(), OrderedDict{String,PathItem}(), OrderedDict{String,PathItem}(),
     Components(), Vector{SecurityRequirement}(), Vector{Tag}(), ExternalDocumentation(), Vector{TagGroup}())
 
 function parse(it::YAMLDocIterator)::OpenAPI

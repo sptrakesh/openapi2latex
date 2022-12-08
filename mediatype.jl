@@ -1,23 +1,23 @@
 mutable struct Encoding <: Comparable
     contentType::String
-    headers::Dict{String,Header}
+    headers::OrderedDict{String,Header}
     style::String
     explode::Bool
     allowReserved::Bool
 end
 
-Encoding() = Encoding("", Dict{String,Header}(), "", false, false)
+Encoding() = Encoding("", OrderedDict{String,Header}(), "", false, false)
 
 mutable struct MediaType <: CircularReference
     schema::Schema
     example::Any
-    examples::Dict{String,Example}
-    encoding::Dict{String,Encoding}
+    examples::OrderedDict{String,Example}
+    encoding::OrderedDict{String,Encoding}
 end
 
-MediaType() = MediaType(Schema(), Nothing, Dict{String,Example}(), Dict{String,Encoding}())
+MediaType() = MediaType(Schema(), Nothing, OrderedDict{String,Example}(), OrderedDict{String,Encoding}())
 
-function parse!(m::MediaType, data::Dict{Any,Any})
+function parse!(m::MediaType, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "schema" parse!(m.schema, value) end
         if key == "example" m.example = value end
@@ -26,7 +26,7 @@ function parse!(m::MediaType, data::Dict{Any,Any})
     end
 end
 
-function parse!(m::Dict{String,MediaType}, data::Dict{Any,Any})
+function parse!(m::OrderedDict{String,MediaType}, data::OrderedDict{Any,Any})
     for (key,value) in data
         mt = MediaType()
         parse!(mt, value)

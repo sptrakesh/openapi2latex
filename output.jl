@@ -155,7 +155,7 @@ $(security_schemes(o.components))
 
     open(args["output"], "w") do f
         write(f, head)
-        oplabels = Dict{String,String}()
+        oplabels = OrderedDict{String,String}()
 
         function op(o::Operation)
             if !isempty(o.operationId)

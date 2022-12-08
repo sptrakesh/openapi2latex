@@ -1,6 +1,6 @@
 function collect_tags!(o::OpenAPI)
     @debug "Collecting tags not included in global tags list"
-    d = Dict{String,Tag}()
+    d = OrderedDict{String,Tag}()
     for t in o.tags
         if !haskey(d, t.name) d[t.name] = t end
     end
@@ -43,7 +43,7 @@ function follow_reference!(m::Any, path::String, key::String)
 
     rpath = r === nothing ? "" : "$(SubString(m.ref, r[1]+2))"
     parts = split(rpath, "/")
-    it = load_all_file(fn; dicttype=Dict{Any,Any})
+    it = load_all_file(fn; dicttype=OrderedDict{Any,Any})
     (yaml, state) = iterate(it)
 
     if r === nothing
@@ -56,7 +56,7 @@ function follow_reference!(m::Any, path::String, key::String)
         if key == rpath
             @info "Parsing reference from $(m.ref) for path: $rpath"
             parse!(m, value)
-        elseif length(parts) > 1 && key == parts[1] && value isa Dict{Any,Any}
+        elseif length(parts) > 1 && key == parts[1] && value isa OrderedDict{Any,Any}
             for (k,v) in value
                 if k == parts[2]
                     @info "Parsing reference from $(m.ref) for path: $rpath"
@@ -72,9 +72,9 @@ function collect_paths!(o::OpenAPI, path::String)
     for (p, pi) in o.paths follow_reference!(pi, path, p) end
 end
 
-function collect_tag_paths(o::OpenAPI)::Dict{String,Vector{PathItem}}
+function collect_tag_paths(o::OpenAPI)::OrderedDict{String,Vector{PathItem}}
     @debug "Collecting PathInfo items for tags"
-    ret = Dict{String,Vector{PathItem}}()
+    ret = OrderedDict{String,Vector{PathItem}}()
 
     function contains(v::Vector{PathItem}, pi::PathItem)::Bool
         for p in v

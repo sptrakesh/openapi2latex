@@ -11,14 +11,14 @@ mutable struct Parameter <: Comparable
     allowReserved::Bool
     schema::Schema
     example::Any
-    examples::Dict{String,Example}
-    content::Dict{String,MediaType}
+    examples::OrderedDict{String,Example}
+    content::OrderedDict{String,MediaType}
 end
 
 Parameter() = Parameter("", "", "", "", false, false, false, "", false, false, Schema(), Nothing,
-    Dict{String,Example}(), Dict{String,MediaType}())
+    OrderedDict{String,Example}(), OrderedDict{String,MediaType}())
 
-function parse!(p::Parameter, data::Dict{Any,Any})
+function parse!(p::Parameter, data::OrderedDict{Any,Any})
     for (key, value) in data
         if key == "\$ref" p.ref = value end
         if key == "name" p.name = value end
@@ -37,7 +37,7 @@ function parse!(p::Parameter, data::Dict{Any,Any})
     end
 end
 
-function parse!(v::Vector{Parameter}, data::Vector{Dict{Any,Any}})
+function parse!(v::Vector{Parameter}, data::Vector{OrderedDict{Any,Any}})
     for d in data
         p = Parameter()
         parse!(p, d)

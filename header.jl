@@ -8,13 +8,13 @@ mutable struct Header{MT<:CircularReference} <: Comparable
     allowReserved::Bool
     schema::Schema
     example::Any
-    examples::Dict{String,Example}
-    content::Dict{String,MT}
+    examples::OrderedDict{String,Example}
+    content::OrderedDict{String,MT}
 end
 
-Header() = Header("", false, false, false, "", false, false, Schema(), Nothing, Dict{String,Example}(), Dict{String,MT}())
+Header() = Header("", false, false, false, "", false, false, Schema(), Nothing, OrderedDict{String,Example}(), OrderedDict{String,MT}())
 
-function parse!(h::Header, data::Dict{Any,Any})
+function parse!(h::Header, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "description" h.description = value end
         if key == "required" h.required = value end
@@ -27,7 +27,7 @@ function parse!(h::Header, data::Dict{Any,Any})
     end
 end
 
-function parse!(h::Dict{String,Header}, data::Dict{Any,Any})
+function parse!(h::OrderedDict{String,Header}, data::OrderedDict{Any,Any})
     for (key,value) in data
         hdr = Header()
         parse!(hdr, value)
