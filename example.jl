@@ -1,4 +1,4 @@
-mutable struct Example
+mutable struct Example <: Comparable
     summary::String
     description::String
     value::Any

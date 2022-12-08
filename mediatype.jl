@@ -1,4 +1,4 @@
-mutable struct Encoding
+mutable struct Encoding <: Comparable
     contentType::String
     headers::Dict{String,Header}
     style::String

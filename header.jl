@@ -1,4 +1,4 @@
-mutable struct Header{MT<:CircularReference}
+mutable struct Header{MT<:CircularReference} <: Comparable
     description::String
     required::Bool
     deprecated::Bool

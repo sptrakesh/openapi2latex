@@ -1,4 +1,4 @@
-mutable struct Parameter
+mutable struct Parameter <: Comparable
     ref::String
     name::String
     in::String

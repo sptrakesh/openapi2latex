@@ -1,4 +1,4 @@
-mutable struct Contact
+mutable struct Contact <: Comparable
     name::String
     url::URI
     email::String
@@ -14,7 +14,7 @@ function parse!(c::Contact, data::Dict{Any,Any})
     end
 end
 
-mutable struct License
+mutable struct License <: Comparable
     name::String
     identifier::String
     url::URI
@@ -30,7 +30,7 @@ function parse!(l::License, data::Dict{Any,Any})
     end
 end
 
-mutable struct Info
+mutable struct Info <: Comparable
     title::String
     summary::String
     description::String

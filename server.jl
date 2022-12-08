@@ -1,4 +1,4 @@
-mutable struct ServerVariable
+mutable struct ServerVariable <: Comparable
     enum::Vector{String}
     default::String
     description::String
@@ -16,7 +16,7 @@ function parse!(s::ServerVariable, data::Dict{Any,Any})
     end
 end
 
-mutable struct Server
+mutable struct Server <: Comparable
     url::URI
     description::String
     variables::Dict{String,ServerVariable}

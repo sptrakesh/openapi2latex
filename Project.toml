@@ -8,6 +8,7 @@ julia = "1"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 MiniLoggers = "93f3dd0f-005d-4452-894a-a31841fa4078"
 URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"

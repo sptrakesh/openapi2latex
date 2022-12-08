@@ -1,4 +1,4 @@
-mutable struct SecurityRequirement
+mutable struct SecurityRequirement <: Comparable
     name::Vector{String}
 end
 
@@ -20,7 +20,7 @@ function parse!(s::Vector{SecurityRequirement}, data::Vector{Dict{Any,Any}})
     end
 end
 
-mutable struct OAuthFlow
+mutable struct OAuthFlow <: Comparable
     authorizationUrl::URI
     tokenUrl::URI
     refreshUrl::URI
@@ -40,7 +40,7 @@ function parse!(o::OAuthFlow, data::Dict{Any,Any})
     end
 end
 
-mutable struct OAuthFlows
+mutable struct OAuthFlows <: Comparable
     implicit::OAuthFlow
     password::OAuthFlow
     clientCredentials::OAuthFlow
@@ -58,7 +58,7 @@ function parse!(o::OAuthFlows, data::Dict{Any,Any})
     end
 end
 
-mutable struct SecurityScheme
+mutable struct SecurityScheme <: Comparable
     ref::String
     type::String
     description::String

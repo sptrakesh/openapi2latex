@@ -1,4 +1,4 @@
-mutable struct Discriminator
+mutable struct Discriminator <: Comparable
     propertyName::String
     mapping::Dict{String,String}
 end
@@ -14,7 +14,7 @@ function parse!(d::Discriminator, data::Dict{Any,Any})
     end
 end
 
-mutable struct XML
+mutable struct XML <: Comparable
     name::String
     namespace::String
     prefix::String
@@ -34,7 +34,7 @@ function parse!(x::XML, data::Dict{Any,Any})
     end
 end
 
-mutable struct Property
+mutable struct Property <: Comparable
     ref::String
     type::String
     summary::String
@@ -68,7 +68,7 @@ function parse!(p::Dict{String,Property}, data::Dict{Any,Any})
     end
 end
 
-mutable struct Schema
+mutable struct Schema <: Comparable
     discriminator::Discriminator
     xml::XML
     externalDocs::ExternalDocumentation

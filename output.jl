@@ -71,7 +71,7 @@ end
 
 function latex(schema::Schema, key::String, f::IOStream)
     @debug "Writing output for schema $key"
-    id = "schema:$(key)"
+    id = "schema:$key"
     write(f, "\n\\chapter{\\label{$id}$key}\n")
     if !isempty(schema.summary) write(f, "\\begin{quote}$(convert(schema.summary))\\end{quote}\n") end
     if !isempty(schema.description) write(f, "$(convert(schema.description))\n") end
@@ -89,6 +89,7 @@ function latex(schema::Schema, key::String, f::IOStream)
         write(f, "\\section{\\label{$pid}$name}\n")
         if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
         if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
+        example = prop.example isa String ? replace(prop.example, "&" => "\\&") : prop.example
 
         write(f, """\\begin{table}[ht]
 \\centering
@@ -96,7 +97,7 @@ function latex(schema::Schema, key::String, f::IOStream)
 \\hline Type & $(prop.type) \\\\
 \\hline Required & $(required(name)) \\\\
 \\hline Default & $(prop.default) \\\\
-\\hline Example & $(prop.example) \\\\
+\\hline Example & $(example) \\\\
 \\hline
 \\end{tabular}
 \\caption{Properties for $name}

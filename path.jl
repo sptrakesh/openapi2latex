@@ -1,4 +1,4 @@
-mutable struct RequestBody
+mutable struct RequestBody <: Comparable
     ref::String
     description::String
     content::Dict{String,MediaType}
@@ -25,7 +25,7 @@ function parse!(r::RequestBody, data::Dict{Any,Any})
     end
 end
 
-mutable struct Link
+mutable struct Link <: Comparable
     operationRef::String
     operationId::String
     parameters::Dict{String,Any}
@@ -55,7 +55,7 @@ function parse!(l::Dict{String,Link}, data::Dict{Any,Any})
     end
 end
 
-mutable struct Response
+mutable struct Response <: Comparable
     description::String
     headers::Dict{String,Header}
     content::Dict{String,MediaType}
@@ -81,7 +81,7 @@ function parse!(r::Dict{String,Response}, data::Dict{Any,Any})
     end
 end
 
-mutable struct Operation{PI<:CircularReference}
+mutable struct Operation{PI<:CircularReference} <: Comparable
     tags::Vector{String}
     summary::String
     description::String

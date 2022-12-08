@@ -1,4 +1,4 @@
-mutable struct ExternalDocumentation
+mutable struct ExternalDocumentation <: Comparable
     description::String
     url::URI
 end
