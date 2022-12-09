@@ -42,9 +42,10 @@ mutable struct Property <: Comparable
     default::Any
     example::Any
     enum::Vector{String}
+    referenceURI::URI # To track external references.
 end
 
-Property() = Property("", "", "", "", "", "", Vector{String}())
+Property() = Property("", "", "", "", "", "", Vector{String}(), URI())
 
 function parse!(p::Property, data::OrderedDict{Any,Any})
     for (key,value) in data
@@ -79,10 +80,11 @@ mutable struct Schema <: Comparable
     required::Vector{String}
     properties::OrderedDict{String,Property}
     allOf::Vector{Any}
+    referenceURI::URI # To track external references.
 end
 
 Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "",
-    Vector{String}(), OrderedDict{String,Property}(), Vector{Any}())
+    Vector{String}(), OrderedDict{String,Property}(), Vector{Any}(), URI())
 
 function parse!(s::Schema, data::OrderedDict{Any,Any})
     for (key,value) in data

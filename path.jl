@@ -3,9 +3,10 @@ mutable struct RequestBody <: Comparable
     description::String
     content::OrderedDict{String,MediaType}
     required::Bool
+    referenceURI::URI # To track external references.
 end
 
-RequestBody() = RequestBody("", "", OrderedDict{String,MediaType}(), false)
+RequestBody() = RequestBody("", "", OrderedDict{String,MediaType}(), false, URI())
 
 function parse!(r::RequestBody, data::OrderedDict{Any,Any})
     for (key,value) in data
@@ -134,10 +135,12 @@ mutable struct PathItem <: CircularReference
     servers::Vector{Server}
     parameters::Vector{Parameter}
     codeSamples::Vector{OrderedDict{String,Any}}
+    referenceURI::URI # To track external references.
 end
 
 PathItem() = PathItem("", "", "", Operation(), Operation(), Operation(), Operation(), Operation(),
-    Operation(), Operation(), Operation(), Vector{Server}(), Vector{Parameter}(), Vector{OrderedDict{String,Any}}())
+    Operation(), Operation(), Operation(), Vector{Server}(), Vector{Parameter}(),
+    Vector{OrderedDict{String,Any}}(), URI())
 
 function parse!(p::PathItem, data::OrderedDict{Any,Any})
     for (key, value) in data

@@ -69,6 +69,35 @@ function security_schemes(c::Components)::String
 """
 end
 
+function latex!(o::Operation, oplabels::OrderedDict{String,String}, f::IOStream)
+    if !isempty(o.operationId)
+        if haskey(oplabels, o.operationId)
+            write(f, "\n\\section*{$(o.operationId)}\n")
+            write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}")
+        else
+            id = "opertion:$(o.operationId)"
+            write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
+            if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+            if !isempty(o.description) write(f, "$(convert(o.description))\n") end
+            if !isempty(o.parameters)
+                write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
+                write(f, "\\begin{description}\n")
+                for p in o.parameters
+                    write(f, "\\item \\textbf{$(p.name)} ")
+                    if !isempty(p.description) write(f, convert(p.description)) end
+                    write(f, "\\begin{description}\n")
+                    write(f, "\\item \\textit{in} - $(p.in)\n")
+                    write(f, "\\item \\textit{required} - $(p.required)\n")
+                    write(f, "\\end{description}\n")
+                end
+                write(f, "\\end{description}\n")
+            end
+            oplabels[o.operationId] = id
+        end
+    end
+end
+
+import JSON: json
 function latex(schema::Schema, key::String, f::IOStream)
     @debug "Writing output for schema $key"
     id = "schema:$key"
@@ -89,20 +118,30 @@ function latex(schema::Schema, key::String, f::IOStream)
         write(f, "\\section{\\label{$pid}$name}\n")
         if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
         if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
-        example = prop.example isa String ? replace(prop.example, "&" => "\\&") : prop.example
+        example = prop.example isa String ? prop.example : ""
+        example = replace(example, "&" => "\\&")
+        example = replace(example, "\$" => "\\\$")
+        example = replace(example, "#" => "\\#")
 
-        write(f, """\\begin{table}[ht]
+        write(f, """\\begin{table}[h!]
 \\centering
-\\begin{tabular}{|l|l|}
+\\begin{supertabular}{|l|p{100mm}|}
 \\hline Type & $(prop.type) \\\\
 \\hline Required & $(required(name)) \\\\
 \\hline Default & $(prop.default) \\\\
 \\hline Example & $(example) \\\\
 \\hline
-\\end{tabular}
-\\caption{Properties for $name}
+\\end{supertabular}
+\\caption{Properties for $key::$name}
 \\end{table}
 """)
+
+        if prop.example isa OrderedDict{Any,Any}
+            write(f, """\\subsubsection*{Code Example}
+\\begin{lstlisting}
+$(json(prop.example, 2))
+\\end{lstlisting}""")
+        end
     end
 end
 
@@ -115,13 +154,13 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
     author = args["author"]
     head = """\\input{$(pwd())/structure.tex}
 
-\\pagestyle{fancy}
 \\lhead{\\textsf{\\textbf{OpenAPI2\\LaTeX}}}
 \\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
 \\lfoot{\\textsf{\\textbf{Version $(o.info.version)}}}
 \\rfoot{\\textsf{\\textbf{Proprietary and Confidential}}}
 
-\\title{$(o.info.title)}
+\\title{$(o.info.title)\\\\
+$(o.info.version)}
 \\author{$(author)}
 \\date{\\today}
 
@@ -157,20 +196,6 @@ $(security_schemes(o.components))
         write(f, head)
         oplabels = OrderedDict{String,String}()
 
-        function op(o::Operation)
-            if !isempty(o.operationId)
-                if haskey(oplabels, o.operationId)
-                    write(f, "\n\\section*{$(o.operationId)}\n")
-                    write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}")
-                else
-                    id = "opertion:$(o.operationId)"
-                    write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
-                    if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
-                    if !isempty(o.description) write(f, "$(convert(o.description))\n") end
-                    oplabels[o.operationId] = id
-                end
-            end
-        end
 
         for tag in o.tags
             @debug "Adding operations for tag $(tag.name)"
@@ -178,14 +203,14 @@ $(security_schemes(o.components))
             if !isempty(tag.description) write(f, "\\begin{quote}$(tag.description)\\end{quote}\n") end
             if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
             for pi in tags[tag.name]
-                op(pi.get)
-                op(pi.put)
-                op(pi.post)
-                op(pi.delete)
-                op(pi.options)
-                op(pi.head)
-                op(pi.patch)
-                op(pi.trace)
+                latex!(pi.get, oplabels, f)
+                latex!(pi.put, oplabels, f)
+                latex!(pi.post, oplabels, f)
+                latex!(pi.delete, oplabels, f)
+                latex!(pi.options, oplabels, f)
+                latex!(pi.head, oplabels, f)
+                latex!(pi.patch, oplabels, f)
+                latex!(pi.trace, oplabels, f)
             end
         end
 

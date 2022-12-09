@@ -107,14 +107,15 @@ function convert_style(line::String)::String
     out = convert_style(out, "*", "\\textit")
     out = convert_style(out, "_", "\\textit")
     out = convert_style(out, "`", "\\texttt")
-    out
 end
 
 function convert(s::String)::String
-    processed = convert_heading(s)
+    processed = replace(s, "\$" => "\\\$")
+    processed = convert_heading(processed)
     processed = convert_listing(processed)
     processed = convert_bullets(processed)
     processed = convert_link(processed)
+    processed = replace(processed, "#" => "\\#")
 
     return convert_style(processed)
 end

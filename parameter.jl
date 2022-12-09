@@ -13,10 +13,11 @@ mutable struct Parameter <: Comparable
     example::Any
     examples::OrderedDict{String,Example}
     content::OrderedDict{String,MediaType}
+    referenceURI::URI # To track external references.
 end
 
 Parameter() = Parameter("", "", "", "", false, false, false, "", false, false, Schema(), Nothing,
-    OrderedDict{String,Example}(), OrderedDict{String,MediaType}())
+    OrderedDict{String,Example}(), OrderedDict{String,MediaType}(), URI())
 
 function parse!(p::Parameter, data::OrderedDict{Any,Any})
     for (key, value) in data
