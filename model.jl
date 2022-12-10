@@ -9,9 +9,7 @@ abstract type Comparable end
 import Base.==
 ==(l::T, r::T) where T <: Comparable =
     getfield.(Ref(l),fieldnames(T)) == getfield.(Ref(r),fieldnames(T))
-function copyfrom(l::T, r::T) where T <: Comparable
-    for f in fieldnames(T) getfield.(Ref(l), f) = getfield.(Ref(r), f) end
-end
+Base.copy(x::T) where T <: Comparable = T([getfield(x, k) for k ∈ fieldnames(T)]...)
 
 abstract type CircularReference <: Comparable end
 

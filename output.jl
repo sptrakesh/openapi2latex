@@ -69,90 +69,8 @@ function security_schemes(c::Components)::String
 """
 end
 
-function latex!(o::Operation, oplabels::OrderedDict{String,String}, f::IOStream)
-    if !isempty(o.operationId)
-        if haskey(oplabels, o.operationId)
-            write(f, "\n\\section*{$(o.operationId)}\n")
-            write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}")
-        else
-            id = "opertion:$(o.operationId)"
-            write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
-            if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
-            if !isempty(o.description) write(f, "$(convert(o.description))\n") end
-            if !isempty(o.parameters)
-                write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
-                write(f, "\\begin{description}\n")
-                for p in o.parameters
-                    write(f, "\\item \\textbf{$(p.name)} ")
-                    if !isempty(p.description) write(f, convert(p.description)) end
-                    write(f, "\\begin{description}\n")
-                    write(f, "\\item \\textit{in} - $(p.in)\n")
-                    write(f, "\\item \\textit{required} - $(p.required)\n")
-                    write(f, "\\end{description}\n")
-                end
-                write(f, "\\end{description}\n")
-            end
-            oplabels[o.operationId] = id
-        end
-    end
-end
-
-import JSON: json
-function latex(schema::Schema, key::String, f::IOStream)
-    @debug "Writing output for schema $key"
-    id = "schema:$key"
-    write(f, "\n\\chapter{\\label{$id}$key}\n")
-    if !isempty(schema.summary) write(f, "\\begin{quote}$(convert(schema.summary))\\end{quote}\n") end
-    if !isempty(schema.description) write(f, "$(convert(schema.description))\n") end
-    if isempty(schema.properties) return end
-
-    function required(name::String)
-        for r in schema.required
-            if r == name return true end
-        end
-        false
-    end
-
-    for (name, prop) in schema.properties
-        pid = "$id:$name"
-        write(f, "\\section{\\label{$pid}$name}\n")
-        if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
-        if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
-        example = prop.example isa String ? prop.example : ""
-        example = replace(example, "&" => "\\&")
-        example = replace(example, "\$" => "\\\$")
-        example = replace(example, "#" => "\\#")
-
-        write(f, """\\begin{table}[h!]
-\\centering
-\\begin{supertabular}{|l|p{100mm}|}
-\\hline Type & $(prop.type) \\\\
-\\hline Required & $(required(name)) \\\\
-\\hline Default & $(prop.default) \\\\
-\\hline Example & $(example) \\\\
-\\hline
-\\end{supertabular}
-\\caption{Properties for $key::$name}
-\\end{table}
-""")
-
-        if prop.example isa OrderedDict{Any,Any}
-            write(f, """\\subsubsection*{Code Example}
-\\begin{lstlisting}
-$(json(prop.example, 2))
-\\end{lstlisting}""")
-        end
-    end
-end
-
-function generate!(o::OpenAPI, args::Dict{String,Any})
-    collect_tags!(o)
-    collect_paths!(o, args["input"])
-    schemas = collect_schemas!(o, args["input"])
-    tags = collect_tag_paths(o)
-
-    author = args["author"]
-    head = """\\input{$(pwd())/structure.tex}
+function latex(o::OpenAPI, author::String, f::IOStream)
+    write(f, """\\input{$(pwd())/structure.tex}
 
 \\lhead{\\textsf{\\textbf{OpenAPI2\\LaTeX}}}
 \\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
@@ -190,27 +108,167 @@ $(servers(o))
 $(security_schemes(o.components))
 
 \\part{Endpoints}
-"""
+""")
+end
+
+function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}, f::IOStream)
+    if !isempty(o.operationId)
+        p = replace(path, "{" => "\\{")
+        p = replace(p, "}" => "\\}")
+        if haskey(oplabels, o.operationId)
+            write(f, "\n\\section*{$(o.operationId)}\n")
+            write(f, "\\seqsplit{$p}\n")
+            write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}\n")
+        else
+            id = "opertion:$(o.operationId)"
+            write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
+            write(f, "\\seqsplit{$p}\n")
+            if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+            if !isempty(o.description) write(f, "$(convert(o.description))\n") end
+            if !isempty(o.parameters)
+                write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
+                write(f, "\\begin{description}\n")
+                for p in o.parameters
+                    write(f, "\\item \\textbf{$(p.name)} ")
+                    if !isempty(p.description) write(f, convert(p.description)) end
+                    write(f, "\\begin{description}\n")
+                    write(f, "\\item \\textit{in} - $(p.in)\n")
+                    write(f, "\\item \\textit{required} - $(p.required)\n")
+                    if !isempty(p.schema.type)
+                        if !isempty(p.schema.description)
+                            write(f, "\\item \\textit{schema} - $(convert(p.schema.description))\n")
+                        else
+                            write(f, "\\item \\textit{schema}\n")
+                        end
+                        write(f, "\\begin{description}\n")
+                        write(f, "\\item \\textit{type} - $(p.schema.type)\n")
+                        if !isempty(p.schema.enum)
+                            write(f, "\\item \\textit{enum} - Allowed values \\texttt{")
+                            write(f, join(p.schema.enum, ", "))
+                            write(f, "}\n")
+                        end
+                        if p.schema.maximum isa Number write(f, "\\item \\textit{maximum} - $(p.schema.maximum)\n") end
+                        if p.schema.minimum isa Number write(f, "\\item \\textit{minimum} - $(p.schema.minimum)\n") end
+                        if !isempty(p.schema.pattern) write(f, "\\item \\textit{pattern} - \\texttt{$(p.schema.pattern)}\n") end
+                        if !isempty(p.schema.format) write(f, "\\item \\textit{format} - $(p.schema.format)\n") end
+                        if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
+                        if !isempty(p.schema.default) write(f, "\\item \\textit{default} - \\texttt{$(p.schema.default)}\n") end
+                        write(f, "\\end{description}\n")
+                    end
+                    write(f, "\\end{description}\n")
+                end
+                write(f, "\\end{description}\n")
+            end
+            oplabels[o.operationId] = id
+        end
+    end
+end
+
+import JSON: json
+function latex(schema::Schema, key::String, f::IOStream)
+    @debug "Writing output for schema $key"
+    id = "schema:$key"
+    write(f, "\n\\chapter{\\label{$id}$key}\n")
+    if !isempty(schema.summary) write(f, "\\begin{quote}$(convert(schema.summary))\\end{quote}\n") end
+    if !isempty(schema.description) write(f, "$(convert(schema.description))\n") end
+    if isempty(schema.properties) return end
+
+    function required(name::String)
+        for r in schema.required
+            if r == name return true end
+        end
+        false
+    end
+
+    function clean(s::String)::String
+        ret = replace(s, "&" => "\\&")
+        ret = replace(ret, "\$" => "\\\$")
+        ret = replace(s, "[" => "\\[")
+        ret = replace(s, "]" => "\\]")
+        ret = replace(s, "{" => "\\{")
+        ret = replace(s, "}" => "\\}")
+        replace(ret, "#" => "\\#")
+    end
+
+    for (name, prop) in schema.properties
+        pid = "$id:$name"
+        write(f, "\\section{\\label{$pid}$name}\n")
+        if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
+        if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
+        example = prop.example isa String ? prop.example : ""
+        def = prop.default isa String ? prop.default : ""
+
+        write(f, """\\begin{table}[h!]
+\\centering
+\\begin{supertabular}{|l|l|}
+\\hline Type & $(prop.type) \\\\
+\\hline Required & $(required(name)) \\\\
+""")
+
+        if !isempty(def) write(f, "\\hline Default & $(clean(def)) \\\\\n") end
+        if !isempty(prop.pattern) write(f, "\\hline Pattern & \\verb $(prop.pattern) \\\\\n") end
+        if !isempty(prop.format) write(f, "\\hline Format & $(clean(prop.format)) \\\\\n") end
+        if !isempty(example) write(f, "\\hline Example & $(clean(example)) \\\\\n") end
+        if prop.maximum isa Number write(f, "\\hline Maximum & $(prop.maximum) \\\\\n") end
+        if prop.exclusiveMaximum isa Number write(f, "\\hline Exclusive Maximum & $(prop.exclusiveMaximum) \\\\\n") end
+        if prop.minimum isa Number write(f, "\\hline Minimum & $(prop.minimum) \\\\\n") end
+        if prop.exclusiveMinimum isa Number write(f, "\\hline Exclusive Minimum & $(prop.exclusiveMinimum) \\\\\n") end
+        if prop.maxLength isa Number write(f, "\\hline Max Length & $(prop.maxLength) \\\\\n") end
+        if prop.minLength isa Number write(f, "\\hline Min Length & $(prop.minLength) \\\\\n") end
+        if prop.maxItems isa Number write(f, "\\hline Max Items & $(prop.maxItems) \\\\\n") end
+        if prop.minItems isa Number write(f, "\\hline Min Items & $(prop.minItems) \\\\\n") end
+
+        if !isempty(prop.enum)
+            e = join(prop.enum, ",")
+            write(f, "\\hline Enum & Allowed values - \\texttt{$e} \\\\\n")
+        end
+
+        if prop.nullable isa Bool write(f, "\\hline Nullable & $(prop.nullable) \\\\\n") end
+        if prop.readOnly isa Bool write(f, "\\hline Read Only & $(prop.readOnly) \\\\\n") end
+        if prop.writeOnly isa Bool write(f, "\\hline Write Only & $(prop.writeOnly) \\\\\n") end
+        if prop.deprecated isa Bool write(f, "\\hline Deprecated & $(prop.deprecated) \\\\\n") end
+
+
+        write(f, """
+\\hline
+\\end{supertabular}
+\\caption{Properties for $key::$name}
+\\end{table}
+""")
+
+        if prop.example isa OrderedDict{Any,Any}
+            write(f, """\\subsubsection*{Code Example}
+\\begin{lstlisting}
+$(json(prop.example, 2))
+\\end{lstlisting}""")
+        end
+    end
+end
+
+function generate!(o::OpenAPI, args::Dict{String,Any})
+    collect_tags!(o)
+    collect_paths!(o, args["input"])
+    schemas = collect_schemas!(o, args["input"])
+    tags = collect_tag_paths(o)
 
     open(args["output"], "w") do f
-        write(f, head)
+        latex(o, args["author"], f)
         oplabels = OrderedDict{String,String}()
-
 
         for tag in o.tags
             @debug "Adding operations for tag $(tag.name)"
             write(f, "\n\\chapter{$(tag.name)}\n")
             if !isempty(tag.description) write(f, "\\begin{quote}$(tag.description)\\end{quote}\n") end
             if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
-            for pi in tags[tag.name]
-                latex!(pi.get, oplabels, f)
-                latex!(pi.put, oplabels, f)
-                latex!(pi.post, oplabels, f)
-                latex!(pi.delete, oplabels, f)
-                latex!(pi.options, oplabels, f)
-                latex!(pi.head, oplabels, f)
-                latex!(pi.patch, oplabels, f)
-                latex!(pi.trace, oplabels, f)
+            for (p,pi) in tags[tag.name]
+                latex!(pi.get, p, oplabels, f)
+                latex!(pi.put, p, oplabels, f)
+                latex!(pi.post, p, oplabels, f)
+                latex!(pi.delete, p, oplabels, f)
+                latex!(pi.options, p, oplabels, f)
+                latex!(pi.head, p, oplabels, f)
+                latex!(pi.patch, p, oplabels, f)
+                latex!(pi.trace, p, oplabels, f)
             end
         end
 

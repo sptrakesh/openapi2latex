@@ -40,7 +40,7 @@ function follow_reference!(m::Comparable, path::String, key::String)
 
     r = findfirst("#", m.ref)
     fn = r === nothing ? joinpath(dirname(path), m.ref) : joinpath(dirname(path), SubString(m.ref, 1, r[1] - 1))
-    if !isfile(fn) @warn "File $fn exists: $(isfile(fn)) does not exist!"; return end
+    if !isfile(fn) @warn "File $fn does not exist!"; return end
 
     m.referenceURI = URI(fn)
     @debug "Set referenceURI for $(typeof(m)) to $fn"
@@ -103,7 +103,7 @@ end
 
 function collect_paths!(o::OpenAPI, path::String)
     @info "Collecting path references"
-    d = Dict{String,Parameter}()
+    d = OrderedDict{String,Parameter}()
 
     for (p, pi) in o.paths
         follow_reference!(pi, path, p)
@@ -118,37 +118,38 @@ function collect_paths!(o::OpenAPI, path::String)
     end
 end
 
-function collect_tag_paths(o::OpenAPI)::OrderedDict{String,Vector{PathItem}}
+function collect_tag_paths(o::OpenAPI)::OrderedDict{String,Vector{Tuple{String,PathItem}}}
     @info "Collecting PathInfo items for tags"
-    ret = OrderedDict{String,Vector{PathItem}}()
+    ret = OrderedDict{String,Vector{Tuple{String,PathItem}}}()
 
-    function contains(v::Vector{PathItem}, pi::PathItem)::Bool
-        for p in v
+    function contains(v::Vector{Tuple{String,PathItem}}, pi::PathItem)::Bool
+        for (x,p) in v
             if p == pi return true end
         end
 
         false
     end
 
-    function add(o::Operation, pi::PathItem)
+    function add(o::Operation, pi::PathItem, p::String)
+        tup = (p, pi)
         for t in o.tags
             if haskey(ret, t)
-                if !contains(ret[t], pi) push!(ret[t], pi) end
+                if !contains(ret[t], pi) push!(ret[t], tup) end
             else
-                ret[t] = [pi]
+                ret[t] = [tup]
             end
         end
     end
 
     for (p,pi) in o.paths
-        add(pi.get, pi)
-        add(pi.put, pi)
-        add(pi.post, pi)
-        add(pi.delete, pi)
-        add(pi.options, pi)
-        add(pi.head, pi)
-        add(pi.patch, pi)
-        add(pi.trace, pi)
+        add(pi.get, pi, p)
+        add(pi.put, pi, p)
+        add(pi.post, pi, p)
+        add(pi.delete, pi, p)
+        add(pi.options, pi, p)
+        add(pi.head, pi, p)
+        add(pi.patch, pi, p)
+        add(pi.trace, pi, p)
     end
 
     ret
@@ -187,28 +188,36 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
             end
         end
 
-        for (k,c) in o.requestBody.content
-            if isempty(c.schema.ref) continue end
-            name = entity(c.schema.ref)
+        function process(s::Schema, key::String)
+            if isempty(s.ref) return end
+            name = entity(s.ref)
             if haskey(refs, name)
                 saved = refs[name]
-                c.schema.discriminator = saved.discriminator
-                c.schema.xml = saved.xml
-                c.schema.externalDocs = saved.externalDocs
-                c.schema.type = saved.type
-                c.schema.summary = saved.summary
-                c.schema.description = saved.description
-                c.schema.required = saved.required
-                c.schema.properties = saved.properties
-                c.schema.referenceURI = saved.referenceURI
+                s.discriminator = saved.discriminator
+                s.xml = saved.xml
+                s.externalDocs = saved.externalDocs
+                s.type = saved.type
+                s.summary = saved.summary
+                s.description = saved.description
+                s.required = saved.required
+                s.properties = saved.properties
+                s.referenceURI = saved.referenceURI
             else
-                follow_reference!(c.schema, path, k)
-                uri = isempty(uristring(c.schema.referenceURI)) ? path : uristring(c.schema.referenceURI)
-                for (pk, p) in c.schema.properties
+                follow_reference!(s, path, key)
+                uri = isempty(uristring(s.referenceURI)) ? path : uristring(s.referenceURI)
+                for (pk, p) in s.properties
                     follow_reference!(p, uri, pk)
                 end
-                refs[name] = c.schema
+                refs[name] = s
             end
+        end
+
+        for (k,c) in o.requestBody.content
+            process(c.schema, k)
+        end
+
+        for p in o.parameters
+            process(p.schema, p.name)
         end
     end
 
@@ -265,11 +274,13 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
         add(p.trace)
     end
 
+    @info "Collecting schema references from schema properties"
     for (key, schema) in refs
-        for prop in schema.properties
+        for (k,prop) in schema.properties
             if isempty(prop.type) && !isempty(prop.ref)
-                uri = isempty(uristring(prop.referenceURI)) ? path : uristring(prop.referenceURI)
-                follow_reference!(p, uri, pk)
+                uri = isempty(uristring(prop.referenceURI)) ? uristring(schema.referenceURI) : uristring(prop.referenceURI)
+                if isempty(uri) uri = path end
+                follow_reference!(prop, uri, k)
             end
         end
     end
