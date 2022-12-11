@@ -86,10 +86,10 @@ mutable struct Operation{PI<:CircularReference} <: Comparable
     tags::Vector{String}
     summary::String
     description::String
-    externalDocs::ExternalDocumentation
+    externalDocs::Union{ExternalDocumentation,Nothing}
     operationId::String
     parameters::Vector{Parameter}
-    requestBody::RequestBody
+    requestBody::Union{RequestBody,Nothing}
     responses::OrderedDict{String,Response}
     callbacks::OrderedDict{String,PI}
     deprecated::Bool
@@ -97,8 +97,8 @@ mutable struct Operation{PI<:CircularReference} <: Comparable
     servers::Vector{Server}
 end
 
-Operation() = Operation(Vector{String}(), "", "", ExternalDocumentation(), "", Vector{Parameter}(),
-    RequestBody(), OrderedDict{String,Response}(), OrderedDict{String,PathItem}(), false,
+Operation() = Operation(Vector{String}(), "", "", nothing, "", Vector{Parameter}(),
+    nothing, OrderedDict{String,Response}(), OrderedDict{String,PathItem}(), false,
     Vector{SecurityRequirement}(), Vector{Server}())
 
 function parse!(o::Operation, data::OrderedDict{Any,Any})
@@ -108,10 +108,10 @@ function parse!(o::Operation, data::OrderedDict{Any,Any})
         end
         if key == "summary" o.summary = value end
         if key == "description" o.description = convert(value) end
-        if key == "externalDocs" parse!(o.externalDocs, value) end
+        if key == "externalDocs" o.externalDocs = ExternalDocumentation(); parse!(o.externalDocs, value) end
         if key == "operationId" o.operationId = value end
         if key == "parameters" parse!(o.parameters, value) end
-        if key == "requestBody" parse!(o.requestBody, value) end
+        if key == "requestBody" o.requestBody = RequestBody(); parse!(o.requestBody, value) end
         if key == "responses" parse!(o.responses, value) end
         if key == "callbacks" parse!(o.callbacks, value) end
         if key == "deprecated" o.deprecated = value end

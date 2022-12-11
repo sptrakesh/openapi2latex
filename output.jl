@@ -125,6 +125,12 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
             write(f, "\\seqsplit{$p}\n")
             if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
             if !isempty(o.description) write(f, "$(convert(o.description))\n") end
+            if o.externalDocs isa ExternalDocumentation
+                if !isempty(o.externalDocs.description) write(f, "$(convert(o.externalDocs.description))\n") end
+                uri = uristring(o.externalDocs.url)
+                if !isempty(uri) write(f, "\\href{$uri}{$uri}\n") end
+            end
+
             if !isempty(o.parameters)
                 write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
                 write(f, "\\begin{description}\n")
@@ -159,6 +165,29 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                 end
                 write(f, "\\end{description}\n")
             end
+
+            if o.requestBody isa RequestBody
+                write(f, "\\subsection{\\label{$id:requestBody}Request Body}\n")
+                write(f, "\\begin{quote}\\textbf{Required} - \\texttt{$(o.requestBody.required)}\\end{quote}")
+                if !isempty(o.requestBody.description) write(f, "$(convert(o.requestBody.description))\n") end
+                ref = "schema:$(entity(o.requestBody.ref))"
+                if !isempty(o.requestBody.ref) write(f, "See Chapter \\ref{$ref} on \\pageref{$ref}") end
+
+                if !isempty(o.requestBody.content)
+                    write(f, "\\begin{description}\n")
+                    for (c,m) in o.requestBody.content
+                        write(f, "\\item \\textbf{$c}\n")
+                        if m.schema isa Schema
+                            if !isempty(m.schema.summary) write(f, "$(convert(m.schema.summary))\n") end
+                            if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n") end
+                            ref = "schema:$(entity(m.schema.ref))"
+                            if !isempty(m.schema.ref) write(f, "See Chapter \\ref{$ref} on \\pageref{$ref}") end
+                        end
+                    end
+                    write(f, "\\end{description}\n")
+                end
+            end
+
             oplabels[o.operationId] = id
         end
     end

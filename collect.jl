@@ -157,8 +157,11 @@ end
 
 function entity(key::String)::String
     r = findfirst("#", key)
-    name = r === nothing ? "$(basename(key))" : "$(SubString(key, r[1]+2))"
-    first(split(name, "."))
+    if r === nothing
+        first(split(basename(key), "."))
+    else
+        "$(first(split(basename(SubString(key, 1, r[1]-1)), ".")))::$(last(split(SubString(key, r[1]+2), "/")))"
+    end
 end
 
 function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
@@ -174,7 +177,7 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
     end
 
     function retrieve(o::Operation, key::String, path::String)
-        if !isempty(o.requestBody.ref)
+        if o.requestBody isa RequestBody && !isempty(o.requestBody.ref)
             name = entity(o.requestBody.ref)
             if haskey(refs, name)
                 rb = refs[name]
@@ -212,8 +215,8 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
             end
         end
 
-        for (k,c) in o.requestBody.content
-            process(c.schema, k)
+        if o.requestBody isa RequestBody
+            for (k,c) in o.requestBody.content process(c.schema, k) end
         end
 
         for p in o.parameters
@@ -238,6 +241,7 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
     @info "Collecting schemas from api and components"
 
     function add(o::Operation)
+        if o.requestBody isa Nothing return end
         for (key,value) in o.requestBody.content
             if isempty(value.schema.ref) continue end
             name = entity(value.schema.ref)
