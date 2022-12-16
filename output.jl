@@ -78,7 +78,7 @@ function latex(o::OpenAPI, author::String, f::IOStream)
 \\rfoot{\\textsf{\\textbf{Proprietary and Confidential}}}
 
 \\title{$(o.info.title)\\\\
-$(o.info.version)}
+Version: $(o.info.version)}
 \\author{$(author)}
 \\date{\\today}
 
@@ -133,7 +133,7 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
 
             if !isempty(o.parameters)
                 write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
-                write(f, "\\begin{description}\n")
+                write(f, "\\begin{itemize}\n")
                 for p in o.parameters
                     write(f, "\\item \\textbf{$(p.name)} ")
                     if !isempty(p.description) write(f, convert(p.description)) end
@@ -163,7 +163,7 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                     end
                     write(f, "\\end{description}\n")
                 end
-                write(f, "\\end{description}\n")
+                write(f, "\\end{itemize}\n")
             end
 
             if o.requestBody isa RequestBody
@@ -180,11 +180,59 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                         if m.schema isa Schema
                             if !isempty(m.schema.summary) write(f, "$(convert(m.schema.summary))\n") end
                             if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n") end
-                            ref = "schema:$(entity(m.schema.ref))"
-                            if !isempty(m.schema.ref) write(f, "See Chapter \\ref{$ref} on \\pageref{$ref}") end
+                            if !isempty(m.schema.ref)
+                                ref = "schema:$(entity(m.schema.ref))"
+                                write(f, "See Chapter \\ref{$ref} on \\pageref{$ref}")
+                            end
                         end
                     end
                     write(f, "\\end{description}\n")
+                end
+            end
+
+            if !isempty(o.responses)
+                write(f, """\\subsection{\\label{$id:responses}Responses}
+See table \\ref{$id:responses:table} for response codes and data.
+""")
+                if isempty(o.responses)
+                    write(f, "No data returned\n")
+                else
+                    write(f, """\\begin{table}[h!]
+    \\centering
+    \\begin{supertabular}{|l|l|p{80mm}|}
+    \\hline Code & Type & Details \\\\
+    """)
+                    for (code,resp) in o.responses
+                        for (ct,sc) in resp.content
+                            if !(sc.schema isa Schema) continue end
+                            if !isempty(sc.schema.ref)
+                                desc = convert(resp.description)
+                                if !isempty(desc) desc = desc * "\n\n" end
+                                ref = "schema:$(entity(sc.schema.ref))"
+                                write(f, "\\hline $code & $ct & $desc See Chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                            else
+                                write(f, "\\hline $code & $ct & ")
+                                if !isempty(resp.description) write(f, "$(convert(resp.description))\n\n") end
+                                if !isempty(sc.schema.summary) write(f, "$(convert(sc.schema.summary))\n\n") end
+                                if !isempty(sc.schema.description) write(f, "$(convert(sc.schema.description))\n\n") end
+
+                                if !isempty(sc.schema.properties)
+                                    write(f, "\\begin{description}\n")
+                                    for (p, prop) in sc.schema.properties write(f, "\\item \\textbf{p}\n") end
+                                    write(f, "\\end{description}\n")
+                                end
+                                write(f, "\\\\\n")
+                            end
+                        end
+                    end
+
+            write(f, """
+    \\hline
+    \\end{supertabular}
+    \\caption{Responses for $(o.operationId)}
+    \\label{$id:responses:table}
+    \\end{table}
+    """)
                 end
             end
 
@@ -197,7 +245,7 @@ import JSON: json
 function latex(schema::Schema, key::String, f::IOStream)
     @debug "Writing output for schema $key"
     id = "schema:$key"
-    write(f, "\n\\chapter{\\label{$id}$key}\n")
+    write(f, "\n\\chapter{\\label{$id}$(isempty(schema.title) ? key : schema.title)}\n")
     if !isempty(schema.summary) write(f, "\\begin{quote}$(convert(schema.summary))\\end{quote}\n") end
     if !isempty(schema.description) write(f, "$(convert(schema.description))\n") end
     if isempty(schema.properties) return end
@@ -219,11 +267,18 @@ function latex(schema::Schema, key::String, f::IOStream)
         replace(ret, "#" => "\\#")
     end
 
+    function refkey(k::String)::String
+        res = entity(k)
+        if !startswith(res, "::") return res end
+        first(split(key, "::")) * res
+    end
+
     for (name, prop) in schema.properties
         pid = "$id:$name"
         write(f, "\\section{\\label{$pid}$name}\n")
         if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
         if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
+
         example = prop.example isa String ? prop.example : ""
         def = prop.default isa String ? prop.default : ""
 
@@ -234,6 +289,7 @@ function latex(schema::Schema, key::String, f::IOStream)
 \\hline Required & $(required(name)) \\\\
 """)
 
+        if !isempty(prop.ref) write(f, "\\hline Reference & See section \\ref{schema:$(refkey(prop.ref))} on page \\pageref{schema:$(refkey(prop.ref))}. \\\\\n") end
         if !isempty(def) write(f, "\\hline Default & $(clean(def)) \\\\\n") end
         if !isempty(prop.pattern) write(f, "\\hline Pattern & \\verb $(prop.pattern) \\\\\n") end
         if !isempty(prop.format) write(f, "\\hline Format & $(clean(prop.format)) \\\\\n") end
@@ -257,7 +313,6 @@ function latex(schema::Schema, key::String, f::IOStream)
         if prop.writeOnly isa Bool write(f, "\\hline Write Only & $(prop.writeOnly) \\\\\n") end
         if prop.deprecated isa Bool write(f, "\\hline Deprecated & $(prop.deprecated) \\\\\n") end
 
-
         write(f, """
 \\hline
 \\end{supertabular}
@@ -276,8 +331,8 @@ end
 
 function generate!(o::OpenAPI, args::Dict{String,Any})
     collect_tags!(o)
-    collect_paths!(o, args["input"])
-    schemas = collect_schemas!(o, args["input"])
+    (pschemas, responses) = collect_paths!(o, args["input"])
+    schemas = collect_schemas!(o, args["input"], pschemas)
     tags = collect_tag_paths(o)
 
     open(args["output"], "w") do f
@@ -305,8 +360,6 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
         for (key,schema) in schemas latex(schema, key, f) end
 
         write(f, """\\backmatter
-\\bibliography{bibliography} % Use the bibliography.bib file for the bibliography
-\\bibliographystyle{plainnat} % Use the plainnat style of referencing
 \\printindex % Print the index at the very end of the document
 \\end{document}""")
     end

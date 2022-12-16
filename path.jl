@@ -57,16 +57,19 @@ function parse!(l::OrderedDict{String,Link}, data::OrderedDict{Any,Any})
 end
 
 mutable struct Response <: Comparable
+    ref::String
     description::String
     headers::OrderedDict{String,Header}
     content::OrderedDict{String,MediaType}
     links::OrderedDict{String,Link}
+    referenceURI::URI # To track external references.
 end
 
-Response() = Response("", OrderedDict{String,Header}(), OrderedDict{String,MediaType}(), OrderedDict{String,Link}())
+Response() = Response("", "", OrderedDict{String,Header}(), OrderedDict{String,MediaType}(), OrderedDict{String,Link}(), URI())
 
 function parse!(r::Response, data::OrderedDict{Any,Any})
     for (key,value) in data
+        if key == "\$ref" r.ref = value end
         if key == "description" r.description = value end
         if key == "headers" parse!(r.headers, value) end
         if key == "content" parse!(r.content, value) end

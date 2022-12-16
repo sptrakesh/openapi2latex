@@ -1,3 +1,5 @@
+_processed = Dict{String, OrderedDict{Any,Any}}()
+
 function collect_tags!(o::OpenAPI)
     @info "Collecting tags not included in global tags list"
     d = Dict{String,Tag}()
@@ -34,12 +36,18 @@ function collect_tags!(o::OpenAPI)
 end
 
 import Base.Filesystem: joinpath
-function follow_reference!(m::Comparable, path::String, key::String)
-    if isempty(m.ref) return end
-    if startswith(m.ref, "#") return end # TODO: populate from local reference
+function follow_reference!(m::Comparable, path::String, key::String)::OrderedDict{String,Schema}
+    ret = OrderedDict{String,Schema}()
+
+    if isempty(m.ref) return ret end
 
     r = findfirst("#", m.ref)
-    fn = r === nothing ? joinpath(dirname(path), m.ref) : joinpath(dirname(path), SubString(m.ref, 1, r[1] - 1))
+    if startswith(m.ref, "#")
+        fn = path
+    else
+        fn = r === nothing ? joinpath(dirname(path), m.ref) : joinpath(dirname(path), SubString(m.ref, 1, r[1] - 1))
+    end
+
     if !isfile(fn) @warn "File $fn does not exist!"; return end
 
     m.referenceURI = URI(fn)
@@ -47,35 +55,116 @@ function follow_reference!(m::Comparable, path::String, key::String)
 
     rpath = r === nothing ? "" : "$(SubString(m.ref, r[1]+2))"
     parts = split(rpath, "/")
-    it = load_all_file(fn; dicttype=OrderedDict{Any,Any})
-    (yaml, state) = iterate(it)
+    yaml = OrderedDict{Any,Any}()
 
-    if r === nothing
-        @info "Empty reference path for $key with $(m.ref)"
-        parse!(m, yaml)
-        return
+    if haskey(_processed, fn)
+        yaml = _processed[fn]
+    else
+        it = load_all_file(fn; dicttype=OrderedDict{Any,Any})
+        (y, state) = iterate(it)
+        _processed[fn] = y
+        yaml = y
     end
 
-    for (key, value) in yaml
-        if key == rpath
-            @info "Parsing reference from $(m.ref) for path: $rpath"
-            parse!(m, value)
-        elseif length(parts) > 1 && key == parts[1] && value isa OrderedDict{Any,Any}
-            for (k,v) in value
-                if k == parts[2]
-                    @info "Parsing reference from $(m.ref) for path: $rpath"
-                    parse!(m, v)
+    if r === nothing
+        @info "Empty reference path for $key with $(m.ref) for $(typeof(m))"
+        parse!(m, yaml)
+        if m isa Schema
+#            ek = isempty(m.title) ?
+#                first(split(basename(m.ref), ".")) * "::" * key :
+#                first(split(basename(m.ref), ".")) * "::" * m.title
+            ek = first(split(basename(m.ref), "."))
+            @debug "Adding key: $ek to return dict"
+            ret[ek] = m
+        end
+        return ret
+    end
+
+    d = yaml
+    for i in 1:length(parts)
+        if  haskey(d, parts[i])
+            if i < length(parts) d = d[parts[i]]; continue end
+            @info "Parsing reference $(m.ref) from path: $rpath in iteration $i for $(parts[i])"
+            parse!(m, d[parts[i]])
+        else
+            @warn "Part $(parts[i]) in key $key does not exist in $fn"
+            break
+        end
+    end
+
+    function populate(schema::Schema)::Union{String,Nothing}
+        r = findfirst("#", schema.ref)
+        rpath = "$(SubString(schema.ref, r[1]+2))"
+        @debug "Populating schema for $rpath"
+        parts = split(rpath, "/")
+        res::Union{String,Nothing} = nothing
+
+        d = yaml
+        for i in 1:length(parts)
+            if haskey(d, parts[i])
+                if i < length(parts) d = d[parts[i]]; continue end
+                if haskey(d[parts[i]], "type")
+                    if d[parts[i]]["type"] == "object"
+                        s = Schema()
+                        parse!(s, d[parts[i]])
+                        s.referenceURI = URI(fn)
+                        res = first(split(basename(fn), ".")) * "::" * parts[i]
+                        ret[res] = s
+                    else
+                        parse!(schema, d[parts[i]])
+                        schema.referenceURI = URI(fn)
+                    end
+                else
+                    parse!(schema, d[parts[i]])
+                    schema.referenceURI = URI(fn)
                 end
+            else
+                @warn "Part $(parts[i]) in key $k does not exist in $fn"
+            end
+        end
+
+        if res isa String @debug "Populated schema with key $res" end
+        res
+    end
+
+    if m isa Schema
+        if startswith(m.ref, "#/")
+            kn = first(split(basename(fn), ".")) * "::" * entity(m.ref)
+            kn = replace(kn, "::::" => "::")
+            @debug "Adding $kn to return dictionary"
+            ret[kn] = m
+        else
+            ret[entity(m.ref)] = m
+        end
+
+        for (k,schema) in m.properties
+            if isempty(schema.ref) continue end
+            if !startswith(schema.ref, "#/") continue end
+            populate(schema)
+        end
+
+        for schema in m.allOf
+            if isempty(schema.ref) continue end
+            if !startswith(schema.ref, "#/") continue end
+            res = populate(schema)
+            if res isa String
+                for (k,v) in ret[res].properties m.properties[k] = v end
             end
         end
     end
+
+    ret
 end
 
-function collect_parameters!(o::Operation, d::OrderedDict{String,Parameter}, path::URI)
-    if isempty(o.parameters) return end
+function collect_parameters!(o::Operation, d::OrderedDict{String,Parameter}, path::URI)::OrderedDict{String,Schema}
+    ret = OrderedDict{String,Schema}()
+    if isempty(o.parameters) return ret end
     for p in o.parameters
         if isempty(p.ref) continue end
-        if startswith(p.ref, "#") continue end
+        if startswith(p.ref, "#")
+            @warn "Parameter with local reference $(p.ref) at path: $(uristring(path))"
+            continue
+        end
 
         name = entity(p.ref)
         if haskey(d, name)
@@ -95,18 +184,60 @@ function collect_parameters!(o::Operation, d::OrderedDict{String,Parameter}, pat
             p.content = saved.content
             p.referenceURI = saved.referenceURI
         else
-            follow_reference!(p, uristring(path), name)
+            res = follow_reference!(p, uristring(path), name)
+            for (k,v) in res if !haskey(ret, k) ret[k] = v end end
             d[name] = p
         end
     end
+
+    ret
 end
 
-function collect_paths!(o::OpenAPI, path::String)
+function collect_responses!(o::Operation, r::Dict{String,Response}, s::Dict{String,Schema}, path::URI)::OrderedDict{String,Schema}
+    ret = OrderedDict{String,Schema}()
+
+    for (key,value) in o.responses
+        if !isempty(value.ref)
+            name = entity(value.ref)
+            if haskey(r, name)
+                saved = r[name]
+                if isempty(value.description) value.description = saved.description end
+                value.headers = saved.headers
+                value.content = saved.content
+                value.links = saved.links
+                value.referenceURI = saved.referenceURI
+            else
+                res = follow_reference!(value, uristring(path), key)
+                r[name] = value
+            end
+        end
+
+        for (k,v) in value.content
+            if !(v.schema isa Schema) continue end
+            if isempty(v.schema.ref) continue end
+            name = entity(v.schema.ref)
+            if haskey(s, name)
+                v.schema.referenceURI = s[name].referenceURI
+            else
+                res = follow_reference!(v.schema, uristring(path), k)
+                for (k,v) in res if !haskey(ret, k) ret[k] = v end end
+                s[name] = v.schema
+            end
+        end
+    end
+
+    ret
+end
+
+function collect_paths!(o::OpenAPI, path::String)::Tuple{Dict{String,Schema},Dict{String,Response}}
     @info "Collecting path references"
     d = OrderedDict{String,Parameter}()
+    r = Dict{String,Response}()
+    s = Dict{String,Schema}()
 
     for (p, pi) in o.paths
-        follow_reference!(pi, path, p)
+        res = follow_reference!(pi, path, p)
+        for (k,v) in res if !haskey(s, k) s[k] = v end end
         collect_parameters!(pi.get, d, pi.referenceURI)
         collect_parameters!(pi.put, d, pi.referenceURI)
         collect_parameters!(pi.post, d, pi.referenceURI)
@@ -115,7 +246,18 @@ function collect_paths!(o::OpenAPI, path::String)
         collect_parameters!(pi.head, d, pi.referenceURI)
         collect_parameters!(pi.patch, d, pi.referenceURI)
         collect_parameters!(pi.trace, d, pi.referenceURI)
+
+        collect_responses!(pi.get, r, s, pi.referenceURI)
+        collect_responses!(pi.put, r, s, pi.referenceURI)
+        collect_responses!(pi.post, r, s, pi.referenceURI)
+        collect_responses!(pi.delete, r, s, pi.referenceURI)
+        collect_responses!(pi.options, r, s, pi.referenceURI)
+        collect_responses!(pi.head, r, s, pi.referenceURI)
+        collect_responses!(pi.patch, r, s, pi.referenceURI)
+        collect_responses!(pi.trace, r, s, pi.referenceURI)
     end
+
+    (s, r)
 end
 
 function collect_tag_paths(o::OpenAPI)::OrderedDict{String,Vector{Tuple{String,PathItem}}}
@@ -164,64 +306,73 @@ function entity(key::String)::String
     end
 end
 
-function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
+function collect_schemas!(o::OpenAPI, path::String, rschemas::Dict{String,Schema})::OrderedDict{String,Schema}
     refs = OrderedDict{String,Schema}()
+
+    function add(res::OrderedDict{String,Schema})
+        for (k,v) in res
+            if !haskey(refs, k)
+                @debug "Adding collected key $k"
+                refs[k] = v
+            end
+        end
+    end
 
     @info "Populating schemas from components"
     for (key,s) in o.components.schemas
         if !isempty(s.ref)
             name = entity(s.ref)
-            follow_reference!(s, path, key)
-            refs[name] = s
+
+#            r = findfirst("::", name)
+#            if r === nothing && !isempty(s.title)
+#                name = name * "::" * s.title
+#            end
+
+            if !haskey(refs, name)
+                res = follow_reference!(s, path, key)
+                add(res)
+                refs[name] = s
+            end
         end
     end
 
-    function retrieve(o::Operation, key::String, path::String)
-        if o.requestBody isa RequestBody && !isempty(o.requestBody.ref)
-            name = entity(o.requestBody.ref)
-            if haskey(refs, name)
-                rb = refs[name]
-                o.requestBody.description = rb.description
-                o.requestBody.content = rb.content
-                o.requestBody.required = rb.required
-                o.requestBody.referenceURI = rb.referenceURI
-            else
-                follow_reference!(o.requestBody, path, key)
-                refs[name] = o.requestBody
-            end
-        end
+    for (key,value) in rschemas
+        if !haskey(refs, key) refs[key] = value end
+    end
 
+    function retrieve(o::Operation, key::String, path::String)
         function process(s::Schema, key::String)
             if isempty(s.ref) return end
             name = entity(s.ref)
             if haskey(refs, name)
-                saved = refs[name]
-                s.discriminator = saved.discriminator
-                s.xml = saved.xml
-                s.externalDocs = saved.externalDocs
-                s.type = saved.type
-                s.summary = saved.summary
-                s.description = saved.description
-                s.required = saved.required
-                s.properties = saved.properties
-                s.referenceURI = saved.referenceURI
+                s.referenceURI = refs[name].referenceURI
             else
-                follow_reference!(s, path, key)
+                res = follow_reference!(s, path, key)
                 uri = isempty(uristring(s.referenceURI)) ? path : uristring(s.referenceURI)
                 for (pk, p) in s.properties
-                    follow_reference!(p, uri, pk)
+                    res = follow_reference!(p, uri, pk)
+                    add(res)
                 end
                 refs[name] = s
             end
         end
 
         if o.requestBody isa RequestBody
+            if !isempty(o.requestBody.ref)
+                name = entity(o.requestBody.ref)
+                if haskey(refs, name)
+                    o.requestBody.referenceURI = refs[name].referenceURI
+                else
+                    res = follow_reference!(o.requestBody, path, key)
+                    add(res)
+                    refs[name] = o.requestBody
+                end
+            end
+
             for (k,c) in o.requestBody.content process(c.schema, k) end
         end
 
-        for p in o.parameters
-            process(p.schema, p.name)
-        end
+        for p in o.parameters process(p.schema, p.name) end
     end
 
     @info "Populating schemas from paths"
@@ -246,21 +397,14 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
             if isempty(value.schema.ref) continue end
             name = entity(value.schema.ref)
             if haskey(refs, name)
-                saved = refs[name]
-                value.schema.discriminator = saved.discriminator
-                value.schema.xml = saved.xml
-                value.schema.externalDocs = saved.externalDocs
-                value.schema.type = saved.type
-                value.schema.summary = saved.summary
-                value.schema.description = saved.description
-                value.schema.required = saved.required
-                value.schema.properties = saved.properties
-                value.schema.referenceURI = saved.referenceURI
+                value.schema.referenceURI = refs[name].referenceURI
             else
-                follow_reference!(value.schema, path, key)
+                res = follow_reference!(value.schema, path, key)
+                add(res)
                 uri = isempty(uristring(value.schema.referenceURI)) ? path : uristring(value.schema.referenceURI)
                 for (pk, p) in value.schema.properties
-                    follow_reference!(p, uri, pk)
+                    res = follow_reference!(p, uri, pk)
+                    add(res)
                 end
                 refs[name] = value.schema
             end
@@ -278,16 +422,40 @@ function collect_schemas!(o::OpenAPI, path::String)::OrderedDict{String,Schema}
         add(p.trace)
     end
 
-    @info "Collecting schema references from schema properties"
-    for (key, schema) in refs
-        for (k,prop) in schema.properties
-            if isempty(prop.type) && !isempty(prop.ref)
-                uri = isempty(uristring(prop.referenceURI)) ? uristring(schema.referenceURI) : uristring(prop.referenceURI)
+    @info "Collection schema references from allOf"
+    for (key,schema) in refs
+        if isempty(schema.allOf) continue end
+        for item in schema.allOf
+            if !isempty(item.ref) && !startswith(item.ref, "#/")
+                uri = isempty(uristring(item.referenceURI)) ? uristring(schema.referenceURI) : uristring(item.referenceURI)
                 if isempty(uri) uri = path end
-                follow_reference!(prop, uri, k)
+                res = follow_reference!(item, uri, key)
+                add(res)
             end
         end
     end
 
-    refs
+    @info "Collecting schema references from schema properties"
+    for (key, schema) in refs
+        for (k,prop) in schema.properties
+            if !isempty(prop.ref)
+                uri = isempty(uristring(prop.referenceURI)) ? uristring(schema.referenceURI) : uristring(prop.referenceURI)
+                if isempty(uri) uri = path end
+                res = follow_reference!(prop, uri, k)
+                add(res)
+            end
+        end
+    end
+
+    out = OrderedDict{String,Schema}()
+    #for (k,s) in o.components.schemas out[k] = s end
+
+    k = Vector{String}()
+    for key in keys(refs) push!(k, key) end
+    for key in sort(k)
+        if haskey(out, key) continue end
+        out[key] = refs[key]
+    end
+
+    out
 end

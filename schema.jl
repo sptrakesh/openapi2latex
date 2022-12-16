@@ -55,7 +55,7 @@ mutable struct Schema <: Comparable
     minItems::Union{Number,Nothing}
     format::String
     enum::Vector{String}
-    allOf::Vector{Any}
+    allOf::Vector{Schema}
     nullable::Union{Bool,Nothing}
     readOnly::Union{Bool,Nothing}
     writeOnly::Union{Bool,Nothing}
@@ -68,7 +68,7 @@ end
 
 Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "", "",
     Vector{String}(), nothing, nothing, nothing, nothing, nothing, nothing, "", nothing, nothing,
-    "", Vector{String}(), Vector{Any}(), nothing, nothing, nothing, nothing, "", "",
+    "", Vector{String}(), Vector{Schema}(), nothing, nothing, nothing, nothing, "", "",
     URI(), OrderedDict{String,Schema}())
 
 function parse!(s::Schema, data::OrderedDict{Any,Any})
@@ -102,7 +102,6 @@ function parse!(s::Schema, data::OrderedDict{Any,Any})
         if key == "writeOnly" s.writeOnly = value end
         if key == "deprecated" s.deprecated = value end
         if key == "allOf"
-            s.allOf = value
             for v in value
                 if v isa OrderedDict{Any,Any}
                     sc = Schema()
@@ -114,6 +113,7 @@ function parse!(s::Schema, data::OrderedDict{Any,Any})
                     if isempty(s.description) s.description = sc.description end
                     if isempty(s.required) s.required = sc.required end
                     for (k,v) in sc.properties s.properties[k] = v end
+                    push!(s.allOf, sc)
                 end
             end
         end
