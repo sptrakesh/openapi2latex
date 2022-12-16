@@ -64,12 +64,13 @@ mutable struct Schema <: Comparable
     default::Any
     referenceURI::URI # To track external references.
     properties::OrderedDict{String,Schema}
+    items::Union{Schema,Nothing}
 end
 
 Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "", "",
     Vector{String}(), nothing, nothing, nothing, nothing, nothing, nothing, "", nothing, nothing,
     "", Vector{String}(), Vector{Schema}(), nothing, nothing, nothing, nothing, "", "",
-    URI(), OrderedDict{String,Schema}())
+    URI(), OrderedDict{String,Schema}(), nothing)
 
 function parse!(s::Schema, data::OrderedDict{Any,Any})
     for (key,value) in data
@@ -118,6 +119,11 @@ function parse!(s::Schema, data::OrderedDict{Any,Any})
             end
         end
         if key == "properties" parse!(s.properties, value) end
+        if key == "items"
+            sc = Schema()
+            parse!(sc, value)
+            s.items = sc
+        end
     end
 end
 

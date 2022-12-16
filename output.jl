@@ -273,7 +273,7 @@ function latex(schema::Schema, key::String, f::IOStream)
         first(split(key, "::")) * res
     end
 
-    for (name, prop) in schema.properties
+    function writeschema(prop::Schema, name::String)
         pid = "$id:$name"
         write(f, "\\section{\\label{$pid}$name}\n")
         if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
@@ -290,6 +290,9 @@ function latex(schema::Schema, key::String, f::IOStream)
 """)
 
         if !isempty(prop.ref) write(f, "\\hline Reference & See section \\ref{schema:$(refkey(prop.ref))} on page \\pageref{schema:$(refkey(prop.ref))}. \\\\\n") end
+        if prop.items isa Schema && !isempty(prop.items.ref)
+            write(f, "\\hline Reference & See section \\ref{schema:$(refkey(prop.items.ref))} on page \\pageref{schema:$(refkey(prop.items.ref))}. \\\\\n")
+        end
         if !isempty(def) write(f, "\\hline Default & $(clean(def)) \\\\\n") end
         if !isempty(prop.pattern) write(f, "\\hline Pattern & \\verb $(prop.pattern) \\\\\n") end
         if !isempty(prop.format) write(f, "\\hline Format & $(clean(prop.format)) \\\\\n") end
@@ -327,6 +330,10 @@ $(json(prop.example, 2))
 \\end{lstlisting}""")
         end
     end
+
+    for (name, prop) in schema.properties writeschema(prop, name) end
+
+    if schema.items isa Schema writeschema(schema.items, "items") end
 end
 
 function generate!(o::OpenAPI, args::Dict{String,Any})
