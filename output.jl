@@ -1,7 +1,7 @@
 function table(i::Info)::String
     if isempty(i.termsOfService.scheme) && isempty(i.version) && isempty(i.license.name) return "" end
     s = """\\section{Other Information}
-\\begin{table}[ht]
+\\begin{table}[!h]
 \\centering
 \\begin{tabular}{|l|l|}
 """
@@ -171,7 +171,8 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                 write(f, "\\begin{quote}\\textbf{Required} - \\texttt{$(o.requestBody.required)}\\end{quote}")
                 if !isempty(o.requestBody.description) write(f, "$(convert(o.requestBody.description))\n") end
                 ref = "schema:$(entity(o.requestBody.ref))"
-                if !isempty(o.requestBody.ref) write(f, "See Chapter \\ref{$ref} on \\pageref{$ref}") end
+                title = last(split(ref, ":"))
+                if !isempty(o.requestBody.ref) write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}") end
 
                 if !isempty(o.requestBody.content)
                     write(f, "\\begin{description}\n")
@@ -182,7 +183,8 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                             if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n") end
                             if !isempty(m.schema.ref)
                                 ref = "schema:$(entity(m.schema.ref))"
-                                write(f, "See Chapter \\ref{$ref} on \\pageref{$ref}")
+                                title = last(split(ref, ":"))
+                                write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}")
                             end
                         end
                     end
@@ -197,10 +199,19 @@ See table \\ref{$id:responses:table} for response codes and data.
                 if isempty(o.responses)
                     write(f, "No data returned\n")
                 else
-                    write(f, """\\begin{table}[h!]
-    \\centering
+                    write(f, """\\begin{center}
+    %\\tablehead{%
+    %  \\hline
+    %  \\multicolumn{3}{|c|}{continued from previous page}\\\\
+    %  \\hline}
+    \\tabletail{%
+      \\hline
+      \\multicolumn{3}{|c|}{continued on next page}\\\\
+      \\hline
+    }
+    \\tablelasttail{\\hline}
+    \\tablecaption{\\label{$id:responses:table}Responses for $(o.operationId)}
     \\begin{supertabular}{|l|l|p{80mm}|}
-    \\hline Code & Type & Details \\\\
     """)
                     for (code,resp) in o.responses
                         for (ct,sc) in resp.content
@@ -209,7 +220,8 @@ See table \\ref{$id:responses:table} for response codes and data.
                                 desc = convert(resp.description)
                                 if !isempty(desc) desc = desc * "\n\n" end
                                 ref = "schema:$(entity(sc.schema.ref))"
-                                write(f, "\\hline $code & $ct & $desc See Chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                                title = last(split(ref, ":"))
+                                write(f, "\\hline $code & $ct & $desc \\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
                             else
                                 write(f, "\\hline $code & $ct & ")
                                 if !isempty(resp.description) write(f, "$(convert(resp.description))\n\n") end
@@ -217,9 +229,39 @@ See table \\ref{$id:responses:table} for response codes and data.
                                 if !isempty(sc.schema.description) write(f, "$(convert(sc.schema.description))\n\n") end
 
                                 if !isempty(sc.schema.properties)
-                                    write(f, "\\begin{description}\n")
-                                    for (p, prop) in sc.schema.properties write(f, "\\item \\textbf{p}\n") end
-                                    write(f, "\\end{description}\n")
+                                    write(f, "\\begin{itemize}\n")
+                                    for (p, prop) in sc.schema.properties write(f, "\\item \\textbf{p} of type $(prop.type)\n") end
+                                    write(f, "\\end{itemize}\n")
+                                end
+
+                                if !isempty(sc.schema.oneOf)
+                                    write(f, "\\textbf{One Of}\n\\begin{itemize}\n")
+                                    for o in sc.schema.oneOf
+                                        if isempty(o.ref)
+                                            write(f, "\\item $(o.title) of type $(o.type)")
+                                        else
+                                            res = startswith(o.ref, "#/") ? path * o.ref : o.ref
+                                            res = entity(res)
+                                            title = last(split(res, ":"))
+                                            write(f, "\\item \\textbf{$title}. See chapter \\ref{schema:$res} on \\pageref{schema:$res}\n")
+                                        end
+                                    end
+                                    write(f, "\\end{itemize}\n")
+                                end
+
+                                if !isempty(sc.schema.anyOf)
+                                    write(f, "\\textbf{Any Of}\n\\begin{itemize}\n")
+                                    for o in sc.schema.anyOf
+                                        if isempty(o.ref)
+                                            write(f, "\\item $(o.title) of type $(o.type)")
+                                        else
+                                            res = startswith(o.ref, "#/") ? path * o.ref : o.ref
+                                            res = entity(res)
+                                            title = last(split(res, ":"))
+                                            write(f, "\\item \\textbf{$title}. See chapter \\ref{schema:$res} on \\pageref{schema:$res}\n")
+                                        end
+                                    end
+                                    write(f, "\\end{itemize}\n")
                                 end
                                 write(f, "\\\\\n")
                             end
@@ -229,9 +271,7 @@ See table \\ref{$id:responses:table} for response codes and data.
             write(f, """
     \\hline
     \\end{supertabular}
-    \\caption{Responses for $(o.operationId)}
-    \\label{$id:responses:table}
-    \\end{table}
+    \\end{center}
     """)
                 end
             end
@@ -282,8 +322,18 @@ function latex(schema::Schema, key::String, f::IOStream)
         example = prop.example isa String ? prop.example : ""
         def = prop.default isa String ? prop.default : ""
 
-        write(f, """\\begin{table}[h!]
-\\centering
+        write(f, """\\begin{center}
+%\\tablehead{%
+%  \\hline
+%  \\multicolumn{2}{|c|}{continued from previous page}\\\\
+%  \\hline}
+\\tabletail{%
+  \\hline
+  \\multicolumn{2}{|c|}{continued on next page}\\\\
+  \\hline
+}
+\\tablelasttail{\\hline}
+\\tablecaption{Properties for $key::$name}
 \\begin{supertabular}{|l|l|}
 \\hline Type & $(prop.type) \\\\
 \\hline Required & $(required(name)) \\\\
@@ -316,11 +366,34 @@ function latex(schema::Schema, key::String, f::IOStream)
         if prop.writeOnly isa Bool write(f, "\\hline Write Only & $(prop.writeOnly) \\\\\n") end
         if prop.deprecated isa Bool write(f, "\\hline Deprecated & $(prop.deprecated) \\\\\n") end
 
+        if !isempty(prop.oneOf)
+            write(f, "\\hline One Of & \\begin{itemize}\n")
+            for sc in prop.oneOf
+                if isempty(sc.ref)
+                    write(f, "\\item \\textbf{$(sc.title)}\n")
+                else
+                    write(f, "See section \\ref{schema:$(refkey(sc.ref))} on page \\pageref{schema:$(refkey(sc.ref))}.\n")
+                end
+            end
+            write(f, "\\end{itemize} \\\\\n")
+        end
+
+        if !isempty(prop.anyOf)
+            write(f, "\\hline One Of & \\begin{itemize}\n")
+            for sc in prop.anyOf
+                if isempty(sc.ref)
+                    write(f, "\\item \\textbf{$(sc.title)}\n")
+                else
+                    write(f, "See section \\ref{schema:$(refkey(sc.ref))} on page \\pageref{schema:$(refkey(sc.ref))}.\n")
+                end
+            end
+            write(f, "\\end{itemize} \\\\\n")
+        end
+
         write(f, """
 \\hline
 \\end{supertabular}
-\\caption{Properties for $key::$name}
-\\end{table}
+\\end{center}
 """)
 
         if prop.example isa OrderedDict{Any,Any}

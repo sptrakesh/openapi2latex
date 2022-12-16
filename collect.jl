@@ -70,9 +70,6 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
         @info "Empty reference path for $key with $(m.ref) for $(typeof(m))"
         parse!(m, yaml)
         if m isa Schema
-#            ek = isempty(m.title) ?
-#                first(split(basename(m.ref), ".")) * "::" * key :
-#                first(split(basename(m.ref), ".")) * "::" * m.title
             ek = first(split(basename(m.ref), "."))
             @debug "Adding key: $ek to return dict"
             ret[ek] = m
@@ -109,6 +106,7 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
                         parse!(s, d[parts[i]])
                         s.referenceURI = URI(fn)
                         res = first(split(basename(fn), ".")) * "::" * parts[i]
+                        @debug "Adding $res to return dictionary"
                         ret[res] = s
                     else
                         parse!(schema, d[parts[i]])
@@ -165,6 +163,27 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
             end
         end
 
+        function composite(schema::Schema, key::String)
+            if isempty(schema.ref) return end
+            if startswith(schema.ref, "#/")
+                res = populate(schema)
+                if res isa String
+                    if !haskey(ret, res)
+                        @debug "Adding $res to return dictionary"
+                        ret[res] = schema
+                    end
+                end
+            else
+                uri = isempty(uristring(schema.referenceURI)) ? uristring(m.referenceURI) : uristring(schema.referenceURI)
+                if isempty(uri) uri = path end
+                follow_reference!(schema, uri, key)
+            end
+        end
+
+        for schema in m.oneOf composite(schema, "oneOf") end
+
+        for schema in m.anyOf composite(schema, "anyOf") end
+
         if m.items isa Schema
             @debug "Populating local references for array items in $(m.title)"
             if startswith(m.items.ref, "#/") populate(m.items) end
@@ -214,6 +233,27 @@ end
 function collect_responses!(o::Operation, r::Dict{String,Response}, s::Dict{String,Schema}, path::URI)::OrderedDict{String,Schema}
     ret = OrderedDict{String,Schema}()
 
+    function follow(sc::Schema, key::String)
+        if isempty(sc.ref) return end
+        name = entity(sc.ref)
+        if haskey(s, name)
+            sc.referenceURI = s[name].referenceURI
+        else
+            res = follow_reference!(sc, uristring(path), key)
+            for (k,v) in res
+                if !haskey(ret, k)
+                    @debug "Adding $k to return dictionary"
+                    ret[k] = v
+                end
+            end
+
+            ref = startswith(sc.ref, "#") ? uristring(sc.referenceURI) * sc.ref : sc.ref
+            name = entity(ref)
+            @debug "Adding $name to input dictionary from $path"
+            s[name] = sc
+        end
+    end
+
     for (key,value) in o.responses
         if !isempty(value.ref)
             name = entity(value.ref)
@@ -226,21 +266,37 @@ function collect_responses!(o::Operation, r::Dict{String,Response}, s::Dict{Stri
                 value.referenceURI = saved.referenceURI
             else
                 res = follow_reference!(value, uristring(path), key)
+                for (k,v) in res
+                    if !haskey(ret, k)
+                        @debug "Adding $k to return dictionary"
+                        ret[k] = v
+                    end
+                end
                 r[name] = value
             end
         end
 
         for (k,v) in value.content
             if !(v.schema isa Schema) continue end
-            if isempty(v.schema.ref) continue end
-            name = entity(v.schema.ref)
-            if haskey(s, name)
-                v.schema.referenceURI = s[name].referenceURI
-            else
-                res = follow_reference!(v.schema, uristring(path), k)
-                for (k,v) in res if !haskey(ret, k) ret[k] = v end end
-                s[name] = v.schema
+            if !isempty(v.schema.ref)
+                name = entity(v.schema.ref)
+                if haskey(s, name)
+                    v.schema.referenceURI = s[name].referenceURI
+                else
+                    res = follow_reference!(v.schema, uristring(path), k)
+                    for (k,v) in res
+                        if !haskey(ret, k)
+                            @debug "Adding $k to return dictionary"
+                            ret[k] = v
+                        end
+                    end
+                    s[name] = v.schema
+                end
             end
+
+            for sc in v.schema.oneOf follow(sc, k) end
+            for sc in v.schema.anyOf follow(sc, k) end
+            for sc in v.schema.allOf follow(sc, k) end
         end
     end
 
@@ -253,9 +309,23 @@ function collect_paths!(o::OpenAPI, path::String)::Tuple{Dict{String,Schema},Dic
     r = Dict{String,Response}()
     s = Dict{String,Schema}()
 
+    function add(res::OrderedDict{String,Schema})
+        for (k,v) in res
+            if !haskey(s, k)
+                @debug "Adding $k to return dictionary"
+                s[k] = v
+            end
+        end
+    end
+
     for (p, pi) in o.paths
         res = follow_reference!(pi, path, p)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        for (k,v) in res
+            if !haskey(s, k)
+                @debug "Adding $k to return dictionary"
+                s[k] = v
+            end
+        end
         collect_parameters!(pi.get, d, pi.referenceURI)
         collect_parameters!(pi.put, d, pi.referenceURI)
         collect_parameters!(pi.post, d, pi.referenceURI)
@@ -266,21 +336,21 @@ function collect_paths!(o::OpenAPI, path::String)::Tuple{Dict{String,Schema},Dic
         collect_parameters!(pi.trace, d, pi.referenceURI)
 
         res = collect_responses!(pi.get, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.put, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.post, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.delete, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.options, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.head, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.patch, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
         res = collect_responses!(pi.trace, r, s, pi.referenceURI)
-        for (k,v) in res if !haskey(s, k) s[k] = v end end
+        add(res)
     end
 
     (s, r)
@@ -349,21 +419,21 @@ function collect_schemas!(o::OpenAPI, path::String, rschemas::Dict{String,Schema
         if !isempty(s.ref)
             name = entity(s.ref)
 
-#            r = findfirst("::", name)
-#            if r === nothing && !isempty(s.title)
-#                name = name * "::" * s.title
-#            end
-
             if !haskey(refs, name)
                 res = follow_reference!(s, path, key)
                 add(res)
+                @debug "Adding $name to refs"
                 refs[name] = s
             end
+        else refs["::$key"] = s
         end
     end
 
     for (key,value) in rschemas
-        if !haskey(refs, key) refs[key] = value end
+        if !haskey(refs, key)
+            @debug "Adding $key to refs"
+            refs[key] = value
+        end
     end
 
     function retrieve(o::Operation, key::String, path::String)

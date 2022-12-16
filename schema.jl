@@ -56,6 +56,8 @@ mutable struct Schema <: Comparable
     format::String
     enum::Vector{String}
     allOf::Vector{Schema}
+    oneOf::Vector{Schema}
+    anyOf::Vector{Schema}
     nullable::Union{Bool,Nothing}
     readOnly::Union{Bool,Nothing}
     writeOnly::Union{Bool,Nothing}
@@ -69,7 +71,8 @@ end
 
 Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "", "",
     Vector{String}(), nothing, nothing, nothing, nothing, nothing, nothing, "", nothing, nothing,
-    "", Vector{String}(), Vector{Schema}(), nothing, nothing, nothing, nothing, "", "",
+    "", Vector{String}(), Vector{Schema}(), Vector{Schema}(), Vector{Schema}(),
+    nothing, nothing, nothing, nothing, "", "",
     URI(), OrderedDict{String,Schema}(), nothing)
 
 function parse!(s::Schema, data::OrderedDict{Any,Any})
@@ -118,11 +121,28 @@ function parse!(s::Schema, data::OrderedDict{Any,Any})
                 end
             end
         end
+        if key == "oneOf"
+            for v in value
+                if v isa OrderedDict{Any,Any}
+                    sc = Schema()
+                    parse!(sc, v)
+                    push!(s.oneOf, sc)
+                end
+            end
+        end
+        if key == "anyOf"
+            for v in value
+                if v isa OrderedDict{Any,Any}
+                    sc = Schema()
+                    parse!(sc, v)
+                    push!(s.anyOf, sc)
+                end
+            end
+        end
         if key == "properties" parse!(s.properties, value) end
         if key == "items"
-            sc = Schema()
-            parse!(sc, value)
-            s.items = sc
+            s.items = Schema()
+            parse!(s.items, value)
         end
     end
 end
