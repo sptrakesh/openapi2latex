@@ -98,11 +98,12 @@ mutable struct Operation{PI<:CircularReference} <: Comparable
     deprecated::Bool
     security::Vector{SecurityRequirement}
     servers::Vector{Server}
+    codeSamples::Vector{OrderedDict{String,Any}}
 end
 
 Operation() = Operation(Vector{String}(), "", "", nothing, "", Vector{Parameter}(),
     nothing, OrderedDict{String,Response}(), OrderedDict{String,PathItem}(), false,
-    Vector{SecurityRequirement}(), Vector{Server}())
+    Vector{SecurityRequirement}(), Vector{Server}(), Vector{OrderedDict{String,Any}}())
 
 function parse!(o::Operation, data::OrderedDict{Any,Any})
     for (key, value) in data
@@ -120,6 +121,14 @@ function parse!(o::Operation, data::OrderedDict{Any,Any})
         if key == "deprecated" o.deprecated = value end
         if key == "security" parse!(o.security, value) end
         if key == "servers" parse!(o.servers, value) end
+        if key == "x-codeSamples"
+            @info "x-codeSamples with type $(typeof(value))"
+            for cs in value
+                d = OrderedDict{String,Any}()
+                for (k,v) in cs d["$k"] = v end
+                push!(o.codeSamples, d)
+            end
+        end
     end
 end
 
@@ -137,13 +146,11 @@ mutable struct PathItem <: CircularReference
     trace::Operation
     servers::Vector{Server}
     parameters::Vector{Parameter}
-    codeSamples::Vector{OrderedDict{String,Any}}
     referenceURI::URI # To track external references.
 end
 
 PathItem() = PathItem("", "", "", Operation(), Operation(), Operation(), Operation(), Operation(),
-    Operation(), Operation(), Operation(), Vector{Server}(), Vector{Parameter}(),
-    Vector{OrderedDict{String,Any}}(), URI())
+    Operation(), Operation(), Operation(), Vector{Server}(), Vector{Parameter}(), URI())
 
 function parse!(p::PathItem, data::OrderedDict{Any,Any})
     for (key, value) in data
@@ -160,13 +167,5 @@ function parse!(p::PathItem, data::OrderedDict{Any,Any})
         if key == "trace" parse!(p.trace, value) end
         if key == "servers" parse!(p.servers, value) end
         if key == "parameters" parse!(p.parameters, value) end
-        if key == "x-codeSamples"
-            @info "x-codeSamples with type $(typeof(value))"
-            for cs in value
-                d = OrderedDict{String,Any}()
-                for (k,v) in cs d["$k"] = v end
-                push!(p.codeSamples, d)
-            end
-        end
     end
 end

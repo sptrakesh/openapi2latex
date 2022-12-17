@@ -126,7 +126,7 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
     end
 
     if m isa Schema
-        kn = startswith(m.ref, "#/") ? entity(fn * m.ref) : entity(m.ref)
+        kn = entity(m.ref, fn)
         @debug "Adding $kn to return dictionary"
         ret[kn] = m
 
@@ -198,12 +198,8 @@ function collect_parameters!(o::Operation, d::OrderedDict{String,Parameter}, pat
     if isempty(o.parameters) return ret end
     for p in o.parameters
         if isempty(p.ref) continue end
-        if startswith(p.ref, "#")
-            @warn "Parameter with local reference $(p.ref) at path: $(uristring(path))"
-            continue
-        end
 
-        name = entity(p.ref)
+        name = entity(p.ref, uristring(path))
         if haskey(d, name)
             saved = d[name]
             p.name = saved.name
@@ -393,12 +389,13 @@ function collect_tag_paths(o::OpenAPI)::OrderedDict{String,Vector{Tuple{String,P
     ret
 end
 
-function entity(key::String)::String
-    r = findfirst("#", key)
+function entity(key::String, uri::String = "")::String
+    name = startswith(key, "#/") ? uri * key : key
+    r = findfirst("#", name)
     if r === nothing
-        first(split(basename(key), "."))
+        first(split(basename(name), "."))
     else
-        "$(first(split(basename(SubString(key, 1, r[1]-1)), ".")))::$(last(split(SubString(key, r[1]+2), "/")))"
+        "$(first(split(basename(SubString(name, 1, r[1]-1)), ".")))::$(last(split(SubString(name, r[1]+2), "/")))"
     end
 end
 

@@ -112,173 +112,216 @@ $(security_schemes(o.components))
 end
 
 function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}, f::IOStream)
-    if !isempty(o.operationId)
-        p = replace(path, "{" => "\\{")
-        p = replace(p, "}" => "\\}")
-        if haskey(oplabels, o.operationId)
-            write(f, "\n\\section*{$(o.operationId)}\n")
-            write(f, "\\seqsplit{$p}\n")
-            write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}\n")
-        else
-            id = "opertion:$(o.operationId)"
-            write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
-            write(f, "\\seqsplit{$p}\n")
-            if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
-            if !isempty(o.description) write(f, "$(convert(o.description))\n") end
-            if o.externalDocs isa ExternalDocumentation
-                if !isempty(o.externalDocs.description) write(f, "$(convert(o.externalDocs.description))\n") end
-                uri = uristring(o.externalDocs.url)
-                if !isempty(uri) write(f, "\\href{$uri}{$uri}\n") end
-            end
+    if isempty(o.operationId) return end
 
-            if !isempty(o.parameters)
-                write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
-                write(f, "\\begin{itemize}\n")
-                for p in o.parameters
-                    write(f, "\\item \\textbf{$(p.name)} ")
-                    if !isempty(p.description) write(f, convert(p.description)) end
-                    write(f, "\\begin{description}\n")
-                    write(f, "\\item \\textit{in} - $(p.in)\n")
-                    write(f, "\\item \\textit{required} - $(p.required)\n")
-                    if !isempty(p.schema.type)
-                        if !isempty(p.schema.description)
-                            write(f, "\\item \\textit{schema} - $(convert(p.schema.description))\n")
-                        else
-                            write(f, "\\item \\textit{schema}\n")
-                        end
-                        write(f, "\\begin{description}\n")
-                        write(f, "\\item \\textit{type} - $(p.schema.type)\n")
-                        if !isempty(p.schema.enum)
-                            write(f, "\\item \\textit{enum} - Allowed values \\texttt{")
-                            write(f, join(p.schema.enum, ", "))
-                            write(f, "}\n")
-                        end
-                        if p.schema.maximum isa Number write(f, "\\item \\textit{maximum} - $(p.schema.maximum)\n") end
-                        if p.schema.minimum isa Number write(f, "\\item \\textit{minimum} - $(p.schema.minimum)\n") end
-                        if !isempty(p.schema.pattern) write(f, "\\item \\textit{pattern} - \\texttt{$(p.schema.pattern)}\n") end
-                        if !isempty(p.schema.format) write(f, "\\item \\textit{format} - $(p.schema.format)\n") end
-                        if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
-                        if !isempty(p.schema.default) write(f, "\\item \\textit{default} - \\texttt{$(p.schema.default)}\n") end
-                        write(f, "\\end{description}\n")
-                    end
-                    write(f, "\\end{description}\n")
+    p = replace(path, "{" => "\\{")
+    p = replace(p, "}" => "\\}")
+    if haskey(oplabels, o.operationId)
+        write(f, "\n\\section*{$(o.operationId)}\n")
+        write(f, "\\seqsplit{$p}\n")
+        write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}\n")
+        return
+    end
+    id = "opertion:$(o.operationId)"
+    write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
+    write(f, "\\seqsplit{$p}\n")
+    if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+    if !isempty(o.description) write(f, "$(convert(o.description))\n") end
+    if o.externalDocs isa ExternalDocumentation
+        if !isempty(o.externalDocs.description) write(f, "$(convert(o.externalDocs.description))\n") end
+        uri = uristring(o.externalDocs.url)
+        if !isempty(uri) write(f, "\\href{$uri}{$uri}\n") end
+    end
+
+    if !isempty(o.parameters)
+        write(f, "\\subsection{\\label{$id:parameters}Parameters}\n")
+        write(f, "\\begin{itemize}\n")
+        for p in o.parameters
+            write(f, "\\item \\textbf{$(p.name)} ")
+            if !isempty(p.description) write(f, convert(p.description)) end
+            write(f, "\\begin{description}\n")
+            write(f, "\\item \\textit{in} - $(p.in)\n")
+            write(f, "\\item \\textit{required} - $(p.required)\n")
+            if !isempty(p.schema.type)
+                if !isempty(p.schema.description)
+                    write(f, "\\item \\textit{schema} - $(convert(p.schema.description))\n")
+                else
+                    write(f, "\\item \\textit{schema}\n")
                 end
-                write(f, "\\end{itemize}\n")
+                write(f, "\\begin{description}\n")
+                write(f, "\\item \\textit{type} - $(p.schema.type)\n")
+                if !isempty(p.schema.enum)
+                    write(f, "\\item \\textit{enum} - Allowed values \\texttt{")
+                    write(f, join(p.schema.enum, ", "))
+                    write(f, "}\n")
+                end
+                if p.schema.maximum isa Number write(f, "\\item \\textit{maximum} - $(p.schema.maximum)\n") end
+                if p.schema.minimum isa Number write(f, "\\item \\textit{minimum} - $(p.schema.minimum)\n") end
+                if !isempty(p.schema.pattern) write(f, "\\item \\textit{pattern} - \\texttt{$(p.schema.pattern)}\n") end
+                if !isempty(p.schema.format) write(f, "\\item \\textit{format} - $(p.schema.format)\n") end
+                if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
+                if !isempty(p.schema.default) write(f, "\\item \\textit{default} - \\texttt{$(p.schema.default)}\n") end
+                write(f, "\\end{description}\n")
             end
+            write(f, "\\end{description}\n")
+        end
+        write(f, "\\end{itemize}\n")
+    end
 
-            if o.requestBody isa RequestBody
-                write(f, "\\subsection{\\label{$id:requestBody}Request Body}\n")
-                write(f, "\\begin{quote}\\textbf{Required} - \\texttt{$(o.requestBody.required)}\\end{quote}")
-                if !isempty(o.requestBody.description) write(f, "$(convert(o.requestBody.description))\n") end
-                ref = "schema:$(entity(o.requestBody.ref))"
-                title = last(split(ref, ":"))
-                if !isempty(o.requestBody.ref) write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}") end
+    if o.requestBody isa RequestBody
+        write(f, "\\subsection{\\label{$id:requestBody}Request Body}\n")
+        if !isempty(o.requestBody.description) write(f, "$(convert(o.requestBody.description))\n") end
+        ref = "schema:$(entity(o.requestBody.ref))"
+        title = last(split(ref, ":"))
 
-                if !isempty(o.requestBody.content)
-                    write(f, "\\begin{description}\n")
-                    for (c,m) in o.requestBody.content
-                        write(f, "\\item \\textbf{$c}\n")
-                        if m.schema isa Schema
-                            if !isempty(m.schema.summary) write(f, "$(convert(m.schema.summary))\n") end
-                            if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n") end
-                            if !isempty(m.schema.ref)
-                                ref = "schema:$(entity(m.schema.ref))"
-                                title = last(split(ref, ":"))
-                                write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}")
-                            end
-                        end
+        write(f, """\\begin{center}
+\\tablefirsthead{%
+\\hline
+\\multicolumn{1}{|c}{\\textbf{Property}} &
+\\multicolumn{1}{|c|}{\\textbf{Value}} \\\\
+\\hline}
+\\tablehead{%
+\\hline
+\\multicolumn{2}{|c|}{continued from previous page}\\\\
+\\hline}
+\\tabletail{%
+\\hline
+\\multicolumn{2}{|c|}{continued on next page}\\\\
+\\hline
+}
+\\tablelasttail{\\hline}
+\\tablecaption{\\label{$id:request:table}Request body for $(o.operationId)}
+\\begin{supertabular}{|l|p{100mm}|}
+""")
+        write(f, "Required & $(o.requestBody.required)\\\\\n")
+        if !isempty(o.requestBody.ref) write(f, "\\hline Reference & \\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}\\\\\n") end
+        if !isempty(o.requestBody.content)
+            write(f, "\\hline Content &")
+            for (c,m) in o.requestBody.content
+                write(f, "\\textbf{$c}\n\n")
+                if m.schema isa Schema
+                    if !isempty(m.schema.summary) write(f, "$(convert(m.schema.summary))\n\n") end
+                    if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n\n") end
+                    if !isempty(m.schema.ref)
+                        ref = "schema:$(entity(m.schema.ref))"
+                        title = last(split(ref, ":"))
+                        write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}")
                     end
-                    write(f, "\\end{description}\n")
                 end
             end
+            write(f, "\\\\\n")
+        end
+        write(f, """
+\\end{supertabular}
+\\end{center}
+""")
 
-            if !isempty(o.responses)
-                write(f, """\\subsection{\\label{$id:responses}Responses}
+    end
+
+    if !isempty(o.responses)
+        write(f, """\\subsection{\\label{$id:responses}Responses}
 See table \\ref{$id:responses:table} for response codes and data.
 """)
-                if isempty(o.responses)
-                    write(f, "No data returned\n")
-                else
-                    write(f, """\\begin{center}
-    %\\tablehead{%
-    %  \\hline
-    %  \\multicolumn{3}{|c|}{continued from previous page}\\\\
-    %  \\hline}
-    \\tabletail{%
-      \\hline
-      \\multicolumn{3}{|c|}{continued on next page}\\\\
-      \\hline
-    }
-    \\tablelasttail{\\hline}
-    \\tablecaption{\\label{$id:responses:table}Responses for $(o.operationId)}
-    \\begin{supertabular}{|l|l|p{80mm}|}
-    """)
-                    for (code,resp) in o.responses
-                        for (ct,sc) in resp.content
-                            if !(sc.schema isa Schema) continue end
-                            if !isempty(sc.schema.ref)
-                                desc = convert(resp.description)
-                                if !isempty(desc) desc = desc * "\n\n" end
-                                ref = "schema:$(entity(sc.schema.ref))"
-                                title = last(split(ref, ":"))
-                                write(f, "\\hline $code & $ct & $desc \\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
-                            else
-                                write(f, "\\hline $code & $ct & ")
-                                if !isempty(resp.description) write(f, "$(convert(resp.description))\n\n") end
-                                if !isempty(sc.schema.summary) write(f, "$(convert(sc.schema.summary))\n\n") end
-                                if !isempty(sc.schema.description) write(f, "$(convert(sc.schema.description))\n\n") end
+        if isempty(o.responses)
+            write(f, "No data returned\n")
+        else
+            write(f, """\\begin{center}
+\\tablefirsthead{%
+\\hline
+\\multicolumn{1}{|c}{\\textbf{Code}} &
+\\multicolumn{1}{|c}{\\textbf{Content Type}} &
+\\multicolumn{1}{|c|}{\\textbf{Notes}} \\\\}
+\\tablehead{%
+\\hline
+\\multicolumn{3}{|c|}{continued from previous page}\\\\}
+\\tabletail{%
+\\hline
+\\multicolumn{3}{|c|}{continued on next page}\\\\
+\\hline
+}
+\\tablelasttail{\\hline}
+\\tablecaption{\\label{$id:responses:table}Responses for $(o.operationId)}
+\\begin{supertabular}{|l|l|p{80mm}|}
+""")
+            for (code,resp) in o.responses
+                for (ct,sc) in resp.content
+                    if !(sc.schema isa Schema) continue end
+                    if !isempty(sc.schema.ref)
+                        desc = convert(resp.description)
+                        if !isempty(desc) desc = desc * "\n\n" end
+                        ref = "schema:$(entity(sc.schema.ref))"
+                        title = last(split(ref, ":"))
+                        write(f, "\\hline $code & $ct & $desc \\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                    else
+                        write(f, "\\hline $code & $ct & ")
+                        if !isempty(resp.description) write(f, "$(convert(resp.description))\n\n") end
+                        if !isempty(sc.schema.summary) write(f, "$(convert(sc.schema.summary))\n\n") end
+                        if !isempty(sc.schema.description) write(f, "$(convert(sc.schema.description))\n\n") end
 
-                                if !isempty(sc.schema.properties)
-                                    write(f, "\\begin{itemize}\n")
-                                    for (p, prop) in sc.schema.properties write(f, "\\item \\textbf{p} of type $(prop.type)\n") end
-                                    write(f, "\\end{itemize}\n")
-                                end
-
-                                if !isempty(sc.schema.oneOf)
-                                    write(f, "\\textbf{One Of}\n\\begin{itemize}\n")
-                                    for o in sc.schema.oneOf
-                                        if isempty(o.ref)
-                                            write(f, "\\item $(o.title) of type $(o.type)")
-                                        else
-                                            res = startswith(o.ref, "#/") ? path * o.ref : o.ref
-                                            res = entity(res)
-                                            title = last(split(res, ":"))
-                                            write(f, "\\item \\textbf{$title}. See chapter \\ref{schema:$res} on \\pageref{schema:$res}\n")
-                                        end
-                                    end
-                                    write(f, "\\end{itemize}\n")
-                                end
-
-                                if !isempty(sc.schema.anyOf)
-                                    write(f, "\\textbf{Any Of}\n\\begin{itemize}\n")
-                                    for o in sc.schema.anyOf
-                                        if isempty(o.ref)
-                                            write(f, "\\item $(o.title) of type $(o.type)")
-                                        else
-                                            res = startswith(o.ref, "#/") ? path * o.ref : o.ref
-                                            res = entity(res)
-                                            title = last(split(res, ":"))
-                                            write(f, "\\item \\textbf{$title}. See chapter \\ref{schema:$res} on \\pageref{schema:$res}\n")
-                                        end
-                                    end
-                                    write(f, "\\end{itemize}\n")
-                                end
-                                write(f, "\\\\\n")
-                            end
+                        if !isempty(sc.schema.properties)
+                            write(f, "\\begin{itemize}\n")
+                            for (p, prop) in sc.schema.properties write(f, "\\item \\textbf{p} of type $(prop.type)\n") end
+                            write(f, "\\end{itemize}\n")
                         end
-                    end
 
-            write(f, """
-    \\hline
-    \\end{supertabular}
-    \\end{center}
-    """)
+                        if !isempty(sc.schema.oneOf)
+                            write(f, "\\textbf{One Of}\n\\begin{itemize}\n")
+                            for o in sc.schema.oneOf
+                                if isempty(o.ref)
+                                    write(f, "\\item $(o.title) of type $(o.type)")
+                                else
+                                    res = startswith(o.ref, "#/") ? path * o.ref : o.ref
+                                    res = entity(res)
+                                    title = last(split(res, ":"))
+                                    write(f, "\\item \\textbf{$title}. See chapter \\ref{schema:$res} on \\pageref{schema:$res}\n")
+                                end
+                            end
+                            write(f, "\\end{itemize}\n")
+                        end
+
+                        if !isempty(sc.schema.anyOf)
+                            write(f, "\\textbf{Any Of}\n\\begin{itemize}\n")
+                            for o in sc.schema.anyOf
+                                if isempty(o.ref)
+                                    write(f, "\\item $(o.title) of type $(o.type)")
+                                else
+                                    res = startswith(o.ref, "#/") ? path * o.ref : o.ref
+                                    res = entity(res)
+                                    title = last(split(res, ":"))
+                                    write(f, "\\item \\textbf{$title}. See chapter \\ref{schema:$res} on \\pageref{schema:$res}\n")
+                                end
+                            end
+                            write(f, "\\end{itemize}\n")
+                        end
+                        write(f, "\\\\\n")
+                    end
                 end
             end
 
-            oplabels[o.operationId] = id
+    write(f, """
+\\end{supertabular}
+\\end{center}
+""")
         end
     end
+
+    examples = ""
+    for (code,resp) in o.responses
+        for (ct,sc) in resp.content
+            for (et,ex) in sc.examples
+                if isempty(examples) examples = "\\subsubsection{Examples}\n" end
+                examples = examples * "\\textbf{\\large $et}\n"
+                if !isempty(ex.summary) examples = examples * " $(convert(ex.summary))\n\n" end
+                if !isempty(ex.description) examples = examples * " $(convert(ex.description))\n\n" end
+                if ex.value !== nothing examples = examples * " \\begin{lstlisting}\n$(json(ex.value, 2))\\end{lstlisting}\n\n" end
+            end
+        end
+    end
+
+    if !isempty(examples) write(f, examples) end
+    if !isempty(o.codeSamples) write(f, "\\subsubsection{Code Samples}\nSee section \\ref{codesamples:$(o.operationId)} on \\pageref{codesamples:$(o.operationId)}\n") end
+
+    oplabels[o.operationId] = id
 end
 
 import JSON: json
@@ -323,10 +366,14 @@ function latex(schema::Schema, key::String, f::IOStream)
         def = prop.default isa String ? prop.default : ""
 
         write(f, """\\begin{center}
-%\\tablehead{%
-%  \\hline
-%  \\multicolumn{2}{|c|}{continued from previous page}\\\\
-%  \\hline}
+\\tablefirsthead{%
+  \\hline
+  \\multicolumn{1}{|c}{\\textbf{Property}} & \\multicolumn{1}{|c|}{\\textbf{Value}} \\\\
+  \\hline}
+\\tablehead{%
+  \\hline
+  \\multicolumn{2}{|c|}{continued from previous page}\\\\
+  \\hline}
 \\tabletail{%
   \\hline
   \\multicolumn{2}{|c|}{continued on next page}\\\\
@@ -335,7 +382,7 @@ function latex(schema::Schema, key::String, f::IOStream)
 \\tablelasttail{\\hline}
 \\tablecaption{Properties for $key::$name}
 \\begin{supertabular}{|l|l|}
-\\hline Type & $(prop.type) \\\\
+Type & $(prop.type) \\\\
 \\hline Required & $(required(name)) \\\\
 """)
 
@@ -344,7 +391,7 @@ function latex(schema::Schema, key::String, f::IOStream)
             write(f, "\\hline Reference & See section \\ref{schema:$(refkey(prop.items.ref))} on page \\pageref{schema:$(refkey(prop.items.ref))}. \\\\\n")
         end
         if !isempty(def) write(f, "\\hline Default & $(clean(def)) \\\\\n") end
-        if !isempty(prop.pattern) write(f, "\\hline Pattern & \\verb $(prop.pattern) \\\\\n") end
+        if !isempty(prop.pattern) write(f, "\\hline Pattern & \\verb|$(prop.pattern)| \\\\\n") end
         if !isempty(prop.format) write(f, "\\hline Format & $(clean(prop.format)) \\\\\n") end
         if !isempty(example) write(f, "\\hline Example & $(clean(example)) \\\\\n") end
         if prop.maximum isa Number write(f, "\\hline Maximum & $(prop.maximum) \\\\\n") end
@@ -391,7 +438,6 @@ function latex(schema::Schema, key::String, f::IOStream)
         end
 
         write(f, """
-\\hline
 \\end{supertabular}
 \\end{center}
 """)
@@ -407,6 +453,59 @@ $(json(prop.example, 2))
     for (name, prop) in schema.properties writeschema(prop, name) end
 
     if schema.items isa Schema writeschema(schema.items, "items") end
+end
+
+function codesamples(o::OpenAPI, tags::OrderedDict{String,Vector{Tuple{String,PathItem}}}, f::IOStream)
+    function hassamples()::Bool
+        for (p,pi) in o.paths
+            if !isempty(pi.get.codeSamples) ||
+            !isempty(pi.put.codeSamples) ||
+            !isempty(pi.post.codeSamples) ||
+            !isempty(pi.delete.codeSamples) ||
+            !isempty(pi.options.codeSamples) ||
+            !isempty(pi.head.codeSamples) ||
+            !isempty(pi.patch.codeSamples) ||
+            !isempty(pi.trace.codeSamples) return true end
+        end
+        false
+    end
+
+    oplabels = Dict{String,Bool}()
+
+    function codefor(o::Operation, name::String = "", write_chapter::Bool = false)
+        if isempty(o.codeSamples) return end
+        if haskey(oplabels, o.operationId) return end
+
+        @debug "Writing code samples for $(o.operationId)"
+        oplabels[o.operationId] = true
+        if write_chapter write(f, "\n\\chapter{$name}\n") end
+        write(f, "\\section{\\label{codesamples:$(o.operationId)}$(o.operationId)}\n")
+
+        for cs in o.codeSamples
+            key = cs["lang"]
+            source = cs["source"]
+            write(f, "\\subsection{$key}\n")
+            write(f, "\\begin{lstlisting}\n$source\n\\end{lstlisting}\n")
+        end
+    end
+
+    if !hassamples() @info "No code samples detected!"; return end
+    write(f, "\\part{Code Samples}\n")
+
+    for tag in o.tags
+        @debug "Adding code samples for tag $(tag.name)"
+
+        for (p,pi) in tags[tag.name]
+            codefor(pi.get, tag.name, true)
+            codefor(pi.put)
+            codefor(pi.post)
+            codefor(pi.delete)
+            codefor(pi.options)
+            codefor(pi.head)
+            codefor(pi.patch)
+            codefor(pi.trace)
+        end
+    end
 end
 
 function generate!(o::OpenAPI, args::Dict{String,Any})
@@ -436,8 +535,10 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
             end
         end
 
-        write(f, "\\part{Schemas}")
+        write(f, "\\part{Schemas}\n")
         for (key,schema) in schemas latex(schema, key, f) end
+
+        codesamples(o, tags, f)
 
         write(f, """\\backmatter
 \\printindex % Print the index at the very end of the document
