@@ -1,0 +1,55 @@
+# OpenAPI2LaTeX
+Utility scripts to generate a LaTeX file from an OpenAPI specification.
+
+The main rationale for this script is to be able to generate a PDF document that can be distributed to interested
+parties, when the source specifications are protected by access control.
+
+The central workflow is to use these scripts to generate the target LaTeX file, and run `pdflatex` a few times (usually
+two times to get the references all resolved) for the output PDF document.
+
+## Usage
+The generator is written in [Julia](https://julialang.org/), and hence requires it to be installed on the target computer.
+
+The set of scripts are not packaged as a Julia Package, since it is not designed for re-use in other systems.  The
+[Project.toml](Project.toml) file lists all the dependencies as regular packages would.
+
+```shell
+cd <path to checked out scripts>
+<path to>/julia main.jl -i <path to>/openapi.yaml -o /tmp/openapi.tex -d
+cd /tmp
+pdflatex openapi.tex
+pdflatex openapi.tex
+pdflatex openapi.tex # if output says run again
+open openapi.pdf
+```
+
+### Command Line Options
+The following options are supported by the [main.jl](main.jl) script:
+
+* `--input | -i` - **Required**. The main OpenAPI specification file to parse.
+* `--output | -o` - **Required**. The output LaTeX file to generate.  Best to place this at another location than the api specs.
+* `--author | -a` - The author credit to show on the titlepage.
+* `--debug | -d` - Show debug log messages.
+
+## Extensions
+A few extensions to the specifications developed by [Redocly](https://redocly.com/) are supported.  In particular,
+source code samples are parsed from the `x-codeSamples` array attached to an operation.  All code samples are attached
+to a separate *part* of the output document, and follow the same chapter organisation as the API tags.
+
+## Limitations
+Probably too many to list, but the following items should be kept in mind.
+
+* Schema objects are assumed to model closely their organisation in a source code implementation.  This in turn implies
+  that nested structures are represented as schema references, and not listed in-line in the schema.  Deeply nested in-line
+  schemas would be very hard to represent in a printed document in any case.
+* The specification is split into individual files - representing paths, schemas, parameters etc.  May not be strictly
+  needed, but has been tested primarily against a large handwritten specification, which follows the principles laid
+  out in [split specifications](https://davidgarcia.dev/posts/how-to-split-open-api-spec-into-multiple-files/)
+* Mainly supports OpenAPI specification version [3.0.3](https://spec.openapis.org/oas/v3.0.3), although some properties
+  from [3.1.0](https://spec.openapis.org/oas/latest.html) are also included.  In particular, schemas are expected in
+  3.0.3 format.
+* Only supports loading local specification files in YAML format.  JSON is not supported at present.
+* Not all properties/aspects of the specification are output in the generated LaTeX file.  I selected what I felt are
+  most relevant to be shared.
+
+The output is a LaTeX file, and hence can be easily modified as needed to further customise the final PDF document.
