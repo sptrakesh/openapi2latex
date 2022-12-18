@@ -42,16 +42,37 @@ function convert_bullets(s::String)::String
     parts = split(s, "\n"; keepempty=true)
     output = Vector{String}()
     block = false
+    indent = 1
+    numindents = 0
 
     for line in parts
         if match(r"^\s*\* ", line) !== nothing
-            begin
-                r = findfirst("*", line)
-                if !block push!(output, "\\begin{itemize}\n"); block = true end
-                push!(output, "\\item $(SubString(line, r[1]+2))")
+            r = findfirst("*", line)
+            if !block
+                push!(output, "\\begin{itemize}\n")
+                block = true
+            elseif r[1] > indent
+                push!(output, "\\begin{itemize}\n")
+                numindents += 1
+            elseif r[1] < indent
+                push!(output, "\\end{itemize}\n")
+                numindents -= 1
             end
-        elseif block && isempty(line) push!(output, "\\end{itemize}\n"); block = false
-        else push!(output, line)
+            indent = r[1]
+            push!(output, "\\item $(SubString(line, r[1]+2))")
+        elseif match(r"^\s*- ", line) !== nothing
+            r = findfirst("-", line)
+            if !block push!(output, "\\begin{itemize}\n"); block = true end
+            push!(output, "\\item $(SubString(line, r[1]+2))")
+        elseif block && isempty(line)
+            block = false
+            push!(output, "\\end{itemize}\n")
+            while numindents > 0
+                push!(output, "\\end{itemize}\n")
+                numindents -= 1
+            end
+        else
+            push!(output, line)
         end
     end
 

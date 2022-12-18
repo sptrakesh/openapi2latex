@@ -12,7 +12,7 @@ Tag() = Tag("", "", ExternalDocumentation())
 function parse!(t::Tag, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "name" t.name = value end
-        if key == "description" t.description = convert(value) end
+        if key == "description" t.description = value end
         if key == "externalDocs" parse!(t.externalDocs, value) end
     end
 end
@@ -164,6 +164,18 @@ function parse(it::YAMLDocIterator)::OpenAPI
         if key == "tags" parse!(api.tags, value) end
         if key == "externalDocs" parse!(api.externalDocs, value) end
         if key == "x-tagGroups" parse!(api.tagGroups, value) end
+    end
+
+    if !isempty(api.servers)
+        for pi in values(api.paths)
+            if isempty(pi.servers) setservers!(pi, api.servers) end
+        end
+    end
+
+    if !isempty(api.security)
+        for pi in values(api.paths) setsecurity!(pi, api.security) end
+    else
+        @info "No security configuration for api"
     end
 
     api

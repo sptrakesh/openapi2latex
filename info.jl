@@ -46,7 +46,7 @@ function parse!(info::Info, data::OrderedDict{Any,Any})
     for (key, value) in data
         if key == "title" info.title = value end
         if key == "summary" info.summary = value end
-        if key == "description" info.description = convert(value) end
+        if key == "description" info.description = value end
         if key == "termsOfService" info.termsOfService = URI(value) end
         if key == "contact" parse!(info.contact, value) end
         if key == "license" parse!(info.license, value) end

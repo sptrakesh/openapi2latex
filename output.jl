@@ -5,7 +5,7 @@ function table(i::Info)::String
 \\centering
 \\begin{tabular}{|l|l|}
 """
-    if !isempty(i.termsOfService.scheme) s = s * "\\hline Terms Of Service & \\href{$(uristring(i.termsOfService))}{$(uristring(i.termsOfService))} \\\\\n" end
+    if !isempty(i.termsOfService.scheme) s = s * "\\hline Terms Of Service & \\url{$(uristring(i.termsOfService))} \\\\\n" end
     if !isempty(i.version) s = s * "\\hline Version & $(i.version) \\\\\n" end
     if !isempty(i.license.name) && !isempty(i.license.identifier) s = s * "\\hline License & $(i.license.identifier) \\\\\n"
     elseif !isempty(i.license.name) && !isempty(i.license.url.scheme) s = s * "\\hline License & \\href{$(i.license.name)}{$(uristring(i.license.url))} \\\\\n"
@@ -26,7 +26,7 @@ function servers(o::OpenAPI)::String
 """
 
     for s in o.servers
-        t = t * "\\hline $(s.description) & \\href{$(uristring(s.url))}{$(uristring(s.url))} \\\\\n"
+        t = t * "\\hline $(s.description) & \\url{$(uristring(s.url))} \\\\\n"
     end
 
     t * """\\hline
@@ -54,12 +54,12 @@ function security_schemes(c::Components)::String
         if !isempty(s.bearerFormat) count += 1 end
         if !isempty(s.openIdConnectUrl.scheme) count += 1 end
         t = t * "\\hline \\multirow{$count}{*}{\\textbf{$key}} & Type & $(s.type) \\\\\n"
-        if !isempty(s.description) t = t * "\\cline{2-3} & Description & $(s.description) \\\\\n" end
+        if !isempty(s.description) t = t * "\\cline{2-3} & Description & $(convert(s.description)) \\\\\n" end
         if !isempty(s.name) t = t * "\\cline{2-3} & Name & $(s.name) \\\\\n" end
         if !isempty(s.in) t = t * "\\cline{2-3} & In & $(s.in) \\\\\n" end
         if !isempty(s.scheme) t = t * "\\cline{2-3} & Scheme & $(s.scheme) \\\\\n" end
         if !isempty(s.bearerFormat) t = t * "\\cline{2-3} & Bearer Format & $(s.bearerFormat) \\\\\n" end
-        if !isempty(s.openIdConnectUrl.scheme) t = t * "\\cline{2-3} & OpenId Connect & \\href{$(uristring(s.openIdConnectUrl))}{$(uristring(s.openIdConnectUrl))} \\\\\n" end
+        if !isempty(s.openIdConnectUrl.scheme) t = t * "\\cline{2-3} & OpenId Connect & \\url{$(uristring(s.openIdConnectUrl))} \\\\\n" end
     end
 
     t * """\\hline
@@ -73,7 +73,7 @@ function latex(o::OpenAPI, author::String, f::IOStream)
     write(f, """\\input{$(pwd())/structure.tex}
 
 \\lhead{\\textsf{\\textbf{OpenAPI2\\LaTeX}}}
-\\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
+%\\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
 \\lfoot{\\textsf{\\textbf{Version $(o.info.version)}}}
 \\rfoot{\\textsf{\\textbf{Proprietary and Confidential}}}
 
@@ -92,14 +92,12 @@ Version: $(o.info.version)}
 %\\newpage
 \\tableofcontents
 
-\\listoftables
-
 \\clearpage
 \\mainmatter
 \\chapter{Information}
 \\begin{quote}$(convert(o.info.summary))\\end{quote}
 
-$(o.info.description)
+$(convert(o.info.description))
 
 $(table(o.info))
 
@@ -116,21 +114,51 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
 
     p = replace(path, "{" => "\\{")
     p = replace(p, "}" => "\\}")
+
+    # Only show reference for operations that have been added with another tag
     if haskey(oplabels, o.operationId)
         write(f, "\n\\section*{$(o.operationId)}\n")
         write(f, "\\seqsplit{$p}\n")
-        write(f, "See Section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}\n")
+        write(f, "See section \\ref{$(oplabels[o.operationId])} on page \\pageref{$(oplabels[o.operationId])}\n")
         return
     end
+
     id = "opertion:$(o.operationId)"
     write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
-    write(f, "\\seqsplit{$p}\n")
     if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+
+    write(f, """\\tablefirsthead{}
+\\tablehead{}
+\\tabletail{}
+\\begin{supertabular}{l|l}
+""")
+    write(f, "Resource Path & \\seqsplit{$p}\\\\\n")
+    for srv in o.servers
+        write(f, "$(srv.description) & \\href{$(uristring(srv.url))$p}{$(uristring(srv.url))} \\\\\n")
+    end
+
+    if isempty(o.security)
+        write(f, "Security & None\\\\\n")
+    end
+        names = Vector{String}()
+        for sec in o.security
+            for key in keys(sec.values) push!(names, key) end
+        end
+        sec = join(names, ", ")
+        if isempty(sec)
+            write(f, "Security & None\\\\\n")
+        else
+            write(f, "Security & $sec\\\\\n")
+        end
+    write(f, """\\end{supertabular}
+
+""")
+
     if !isempty(o.description) write(f, "$(convert(o.description))\n") end
     if o.externalDocs isa ExternalDocumentation
         if !isempty(o.externalDocs.description) write(f, "$(convert(o.externalDocs.description))\n") end
         uri = uristring(o.externalDocs.url)
-        if !isempty(uri) write(f, "\\href{$uri}{$uri}\n") end
+        if !isempty(uri) write(f, "\\url{$uri}\n") end
     end
 
     if !isempty(o.parameters)
@@ -521,7 +549,7 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
         for tag in o.tags
             @debug "Adding operations for tag $(tag.name)"
             write(f, "\n\\chapter{$(tag.name)}\n")
-            if !isempty(tag.description) write(f, "\\begin{quote}$(tag.description)\\end{quote}\n") end
+            if !isempty(tag.description) write(f, "\\begin{quote}$(convert(tag.description))\\end{quote}\n") end
             if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
             for (p,pi) in tags[tag.name]
                 latex!(pi.get, p, oplabels, f)
@@ -541,6 +569,8 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
         codesamples(o, tags, f)
 
         write(f, """\\backmatter
+\\listoftables
+\\clearpage
 \\printindex % Print the index at the very end of the document
 \\end{document}""")
     end

@@ -1,14 +1,16 @@
 mutable struct SecurityRequirement <: Comparable
-    name::Vector{String}
+    values::OrderedDict{String,Vector{String}}
 end
 
-SecurityRequirement() = SecurityRequirement(Vector{String}())
+SecurityRequirement() = SecurityRequirement(OrderedDict{String,Vector{String}}())
 
 function parse!(s::SecurityRequirement, data::OrderedDict{Any,Any})
     for (key, value) in data
-        if key == "name"
-            for v in value push!(s.name, v) end
+        if !haskey(s.values, key)
+            s.values[key] = Vector{String}()
         end
+
+        for v in value push!(s.values[key], v) end
     end
 end
 

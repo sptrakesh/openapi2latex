@@ -1,11 +1,24 @@
 # OpenAPI2LaTeX
 Utility scripts to generate a LaTeX file from an OpenAPI specification.
 
-The main rationale for this script is to be able to generate a PDF document that can be distributed to interested
+The rationale for this script is to be able to generate a PDF document that can be distributed to interested
 parties, when the source specifications are protected by access control.
 
 The central workflow is to use these scripts to generate the target LaTeX file, and run `pdflatex` a few times (usually
 two times to get the references all resolved) for the output PDF document.
+
+## Structure
+The generated LaTeX file has the following structure (you can of course modify the output file as desired):
+
+* **Frontmatter** - Titlepage and table of contents.
+* **Mainmatter** - Contains two or three parts.
+  * **Info** - The *info* object is presented as the first chapter. 
+  * **Endpoints** - Part with the path operations grouped by tags. Each tag is presented in a *chapter*.
+  * **Schemas** - Part with the *schemas* declared and referenced in the specification.  Each *schema* is presented in a
+    *chapter*.  Schemas are listed alphabetically by their filename and entity name.
+  * **Code Samples** - If the `x-codeSamples` extension exists for operations, these are collected together into a third
+    *part*.  Code samples are grouped together under each *tag* group, which is presented as a *chapter*.
+* **Backmatter** - List of tables.
 
 ## Usage
 The generator is written in [Julia](https://julialang.org/), and hence requires it to be installed on the target computer.

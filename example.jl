@@ -10,7 +10,7 @@ Example() = Example("", "", Nothing, URI())
 function parse!(e::Example, data::OrderedDict{Any,Any})
     for (key,value) in data
         if key == "summary" e.summary = value end
-        if key == "description" e.description = convert(value) end
+        if key == "description" e.description = value end
         if key == "value" e.value = value end
         if key == "externalValue" e.externalValue = URI(value) end
     end
