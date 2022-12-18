@@ -70,7 +70,7 @@ function security_schemes(c::Components)::String
 end
 
 function latex(o::OpenAPI, author::String, f::IOStream)
-    write(f, """\\input{$(pwd())/structure.tex}
+    write(f, """\\input{$(pwd())/preamble.tex}
 
 \\lhead{\\textsf{\\textbf{OpenAPI2\\LaTeX}}}
 %\\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
