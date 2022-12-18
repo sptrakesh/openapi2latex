@@ -1,4 +1,11 @@
 # OpenAPI2LaTeX
+* [Structure](#structure)
+* [Usage](#usage)
+  * [Install Dependencies](#install-dependencies)
+  * [Command Line Options](#command-line-options)
+* [Extension](#extensions)
+* [Limitations](#limitations)
+
 Utility scripts to generate a LaTeX file from an OpenAPI specification.
 
 The rationale for this script is to be able to generate a PDF document that can be distributed to interested
@@ -35,6 +42,22 @@ pdflatex openapi.tex
 pdflatex openapi.tex
 pdflatex openapi.tex # if output says run again
 open openapi.pdf
+```
+
+### Install Dependencies
+
+Start the Julia Pkg REPL.
+
+```julia
+julia> ]
+pkg> add ArgParse
+pkg> add OrderedCollections
+pkg> add JSON
+pkg> add MiniLoggers
+pkg> add URIs
+pkg> add YAML
+pkg> [delete]
+julia> CTRL+d
 ```
 
 ### Command Line Options
