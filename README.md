@@ -2,10 +2,11 @@
 Utility scripts to generate a LaTeX file from an OpenAPI specification.
 
 The rationale for this script is to be able to generate a PDF document that can be distributed to interested
-parties, when the source specifications are protected by access control.
+parties, when the source specifications are protected by access control (and where the said parties do not need to
+be provided with the access credentials).
 
-The central workflow is to use these scripts to generate the target LaTeX file, and run `pdflatex` a few times (usually
-two times to get the references all resolved) for the output PDF document.
+The workflow is to use these scripts to generate the target LaTeX file, and run `pdflatex` a few times (usually
+two times to get cross-references resolved) for the output PDF document.
 
 ## Structure
 The generated LaTeX file has the following structure (you can of course modify the output file as desired):
@@ -52,6 +53,7 @@ to a separate *part* of the output document, and follow the same chapter organis
 ## Limitations
 Probably too many to list, but the following items should be kept in mind.
 
+* These scripts are based on the way *I write API specifications*, and markup descriptions.
 * Schema objects are assumed to model closely their organisation in a source code implementation.  This in turn implies
   that nested structures are represented as schema references, and not listed in-line in the schema.  Deeply nested in-line
   schemas would be very hard to represent in a printed document in any case.
@@ -64,5 +66,6 @@ Probably too many to list, but the following items should be kept in mind.
 * Only supports loading local specification files in YAML format.  JSON is not supported at present.
 * Not all properties/aspects of the specification are output in the generated LaTeX file.  I selected what I felt are
   most relevant to be shared.
+* Markdown markup may not be fully translated to LaTeX.  See [runtests.jl](runtests.jl) for basic rules implemented.
 
 The output is a LaTeX file, and hence can be easily modified as needed to further customise the final PDF document.

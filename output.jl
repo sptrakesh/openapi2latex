@@ -64,7 +64,7 @@ function security_schemes(c::Components)::String
 
     t * """\\hline
 \\end{tabular}
-\\caption{Security Schemes}
+\\caption{\\label{table::security::schemes}Security Schemes}
 \\end{table}
 """
 end
@@ -127,7 +127,8 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
     write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
     if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
 
-    write(f, """\\tablefirsthead{}
+    write(f, """\\begin{minipage}{\\textwidth}
+\\tablefirsthead{}
 \\tablehead{}
 \\tabletail{}
 \\begin{supertabular}{l|l}
@@ -148,9 +149,10 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
         if isempty(sec)
             write(f, "Security & None\\\\\n")
         else
-            write(f, "Security & $sec\\\\\n")
+            write(f, "Security & $sec\\footnote{See table \\ref{table::security::schemes} on page \\pageref{table::security::schemes}}\\\\\n")
         end
     write(f, """\\end{supertabular}
+\\end{minipage}
 
 """)
 
