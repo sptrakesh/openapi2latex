@@ -46,9 +46,12 @@ The following options are supported by the [main.jl](main.jl) script:
 * `--debug | -d` - Show debug log messages.
 
 ## Extensions
-A few extensions to the specifications developed by [Redocly](https://redocly.com/) are supported.  In particular,
-source code samples are parsed from the `x-codeSamples` array attached to an operation.  All code samples are attached
-to a separate *part* of the output document, and follow the same chapter organisation as the API tags.
+A few extensions to the specifications developed by [Redocly](https://redocly.com/) are supported. 
+
+* Source code samples are parsed from the `x-codeSamples` array attached to an operation.  All code samples are attached
+  to a separate *part* of the output document, and follow the same chapter organisation as the API tags.
+* Tag groups are parsed from the `x-tagGroups` array attached to the root of the specification document.  If specified
+  an initial chapter **Tag Groups** is added, which lists the groupings with links to the **Tag** chapters.
 
 ## Limitations
 Probably too many to list, but the following items should be kept in mind.

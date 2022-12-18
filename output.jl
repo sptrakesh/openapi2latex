@@ -548,9 +548,22 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
         latex(o, args["author"], f)
         oplabels = OrderedDict{String,String}()
 
+        if !isempty(o.tagGroups)
+            @debug "Adding tag groups chapter"
+            write(f, "\\chapter{Tag Groups}")
+
+            for tg in o.tagGroups
+                write(f, """\\section{$(tg.name)}
+\\begin{itemize}
+""")
+                for t in tg.tags write(f, "\\item \\hyperref[tag::$t]{$t} on page \\pageref{tag::$t}\n") end
+                write(f, "\\end{itemize}")
+            end
+        end
+
         for tag in o.tags
             @debug "Adding operations for tag $(tag.name)"
-            write(f, "\n\\chapter{$(tag.name)}\n")
+            write(f, "\n\\chapter{\\label{tag::$(tag.name)}$(tag.name)}\n")
             if !isempty(tag.description) write(f, "\\begin{quote}$(convert(tag.description))\\end{quote}\n") end
             if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
             for (p,pi) in tags[tag.name]
