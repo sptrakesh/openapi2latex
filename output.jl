@@ -138,9 +138,10 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
         write(f, "$(srv.description) & \\href{$(uristring(srv.url))$p}{$(uristring(srv.url))} \\\\\n")
     end
 
-    if isempty(o.security)
-        write(f, "Security & None\\\\\n")
-    end
+    if o.security isa Vector{SecurityRequirement}
+        if isempty(o.security)
+            write(f, "Security & None\\\\\n")
+        end
         names = Vector{String}()
         for sec in o.security
             for key in keys(sec.values) push!(names, key) end
@@ -151,6 +152,8 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
         else
             write(f, "Security & $sec\\footnote{See table \\ref{table::security::schemes} on page \\pageref{table::security::schemes}}\\\\\n")
         end
+    end
+
     write(f, """\\end{supertabular}
 \\end{minipage}
 
@@ -377,6 +380,7 @@ function latex(schema::Schema, key::String, f::IOStream)
         ret = replace(s, "]" => "\\]")
         ret = replace(s, "{" => "\\{")
         ret = replace(s, "}" => "\\}")
+        ret = replace(s, "_" => "\\textunderscore ")
         replace(ret, "#" => "\\#")
     end
 
@@ -388,7 +392,7 @@ function latex(schema::Schema, key::String, f::IOStream)
 
     function writeschema(prop::Schema, name::String)
         pid = "$id:$name"
-        write(f, "\\section{\\label{$pid}$name}\n")
+        write(f, "\\section{\\label{$pid}$(clean(name))}\n")
         if !isempty(prop.summary) write(f, "\\begin{quote}$(convert(prop.summary))\\end{quote}\n") end
         if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
 
@@ -410,7 +414,7 @@ function latex(schema::Schema, key::String, f::IOStream)
   \\hline
 }
 \\tablelasttail{\\hline}
-\\tablecaption{Properties for $key::$name}
+\\tablecaption{Properties for $key::$clean(name)}
 \\begin{supertabular}{|l|l|}
 Type & $(prop.type) \\\\
 \\hline Required & $(required(name)) \\\\

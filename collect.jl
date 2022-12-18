@@ -322,6 +322,8 @@ function collect_paths!(o::OpenAPI, path::String)::Tuple{Dict{String,Schema},Dic
                 s[k] = v
             end
         end
+
+        if isempty(uristring(pi.referenceURI)) pi.referenceURI = URI(path) end
         collect_parameters!(pi.get, d, pi.referenceURI)
         collect_parameters!(pi.put, d, pi.referenceURI)
         collect_parameters!(pi.post, d, pi.referenceURI)
