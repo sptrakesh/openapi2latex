@@ -105,6 +105,8 @@ function parse!(s::Schema, data::OrderedDict{Any,Any})
         if key == "readOnly" s.readOnly = value end
         if key == "writeOnly" s.writeOnly = value end
         if key == "deprecated" s.deprecated = value end
+        if key == "example" s.example = value end
+        if key == "default" s.default = value end
         if key == "allOf"
             for v in value
                 if v isa OrderedDict{Any,Any}

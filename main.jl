@@ -1,4 +1,4 @@
-import ArgParse: ArgParseSettings, @add_arg_table, parse_args
+import ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 import OrderedCollections: OrderedDict
 import YAML: load_all_file
 using MiniLoggers
@@ -7,7 +7,7 @@ include("model.jl")
 
 function cmd_options()
     s = ArgParseSettings()
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "--input", "-i"
             help = "The input OpenAPI YAML file"
             arg_type = String
@@ -21,27 +21,32 @@ function cmd_options()
             arg_type = String
             required = false
             default = "OpenAPI2LaTeX Generator"
+        "--footer", "-f"
+            help = "The right footer text for the document."
+            arg_type = String
+            required = false
+            default = "Proprietary and Confidential"
         "--debug", "-d"
         help = "Enable debug log level"
         action = :store_true
     end
-    parse_args(ARGS, s)
+    parse_args(s)
 end
 
-function main()
+function main(args)
     @time begin
-        args = cmd_options()
-        if args["debug"]
+        opts = cmd_options()
+        if opts["debug"]
             MiniLogger(minlevel = MiniLoggers.Debug,
                    format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
         else
             MiniLogger(minlevel = MiniLoggers.Info,
                    format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
         end
-        spec = load_all_file(args["input"]; dicttype=OrderedDict{Any,Any})
+        spec = load_all_file(opts["input"]; dicttype=OrderedDict{Any,Any})
         api = model.parse(spec)
-        model.generate!(api, args)
+        model.generate!(api, opts)
     end
 end
 
-main()
+main(ARGS)

@@ -1,3 +1,14 @@
+function clean(s::String)::String
+    ret = replace(s, "&" => "\\&")
+    ret = replace(ret, "\$" => "\\\$")
+    ret = replace(s, "[" => "\\[")
+    ret = replace(s, "]" => "\\]")
+    ret = replace(s, "{" => "\\{")
+    ret = replace(s, "}" => "\\}")
+    ret = replace(s, "_" => "\\textunderscore ")
+    replace(ret, "#" => "\\#")
+end
+
 function table(i::Info)::String
     if isempty(i.termsOfService.scheme) && isempty(i.version) && isempty(i.license.name) return "" end
     s = """\\section{Other Information}
@@ -69,13 +80,12 @@ function security_schemes(c::Components)::String
 """
 end
 
-function latex(o::OpenAPI, author::String, f::IOStream)
+function latex(o::OpenAPI, author::String, footer::String, f::IOStream)
     write(f, """\\input{$(pwd())/preamble.tex}
 
 \\lhead{\\textsf{\\textbf{OpenAPI2\\LaTeX}}}
-%\\rhead{\\textsf{\\textbf{OpenAPI $(o.openapi)}}}
 \\lfoot{\\textsf{\\textbf{Version $(o.info.version)}}}
-\\rfoot{\\textsf{\\textbf{Proprietary and Confidential}}}
+\\rfoot{\\textsf{\\textbf{$footer}}}
 
 \\title{$(o.info.title)\\\\
 Version: $(o.info.version)}
@@ -109,7 +119,7 @@ $(security_schemes(o.components))
 """)
 end
 
-function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}, f::IOStream)
+function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}, method::String, f::IOStream)
     if isempty(o.operationId) return end
 
     p = replace(path, "{" => "\\{")
@@ -134,6 +144,7 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
 \\begin{supertabular}{l|l}
 """)
     write(f, "Resource Path & \\seqsplit{$p}\\\\\n")
+    write(f, "HTTP Method & $method\\\\\n")
     for srv in o.servers
         write(f, "$(srv.description) & \\href{$(uristring(srv.url))$p}{$(uristring(srv.url))} \\\\\n")
     end
@@ -238,7 +249,30 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                     if !isempty(m.schema.ref)
                         ref = "schema:$(entity(m.schema.ref))"
                         title = last(split(ref, ":"))
-                        write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}")
+                        write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}\n\n")
+                    else
+                        if !isempty(m.schema.summary) write(f, "$(convert(m.schema.summary))\n\n") end
+                        if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n\n") end
+
+                        if !isempty(m.schema.properties)
+                            write(f, "\\begin{itemize}\n")
+                            for (p, prop) in m.schema.properties
+                                write(f, "\\item \\textbf{$(clean(p))}\n")
+                                if !isempty(prop.ref)
+                                    ref = "schema:$(entity(prop.ref))"
+                                    title = last(split(ref, ":"))
+                                    write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                                else
+                                    if !isempty(prop.description) write(f, "$(clean(prop.description))\n") end
+                                    write(f, "\\begin{itemize}\n")
+                                    write(f, "\\item \\textbf{Type} $(prop.type)\n")
+                                    if !isempty(prop.format) write(f, "\\item \\textbf{Format} $(prop.format)\n") end
+                                    if prop.type !== "object" && prop.type !== "array" && !isempty(prop.example) write(f, "\\item \\textbf{Example} \\verb|$(prop.example)|\n") end
+                                    write(f, "\\end{itemize}\n")
+                                end
+                            end
+                            write(f, "\\end{itemize}\n")
+                        end
                     end
                 end
             end
@@ -293,7 +327,21 @@ See table \\ref{$id:responses:table} for response codes and data.
 
                         if !isempty(sc.schema.properties)
                             write(f, "\\begin{itemize}\n")
-                            for (p, prop) in sc.schema.properties write(f, "\\item \\textbf{p} of type $(prop.type)\n") end
+                            for (p, prop) in sc.schema.properties
+                                write(f, "\\item \\textbf{$(clean(p))}\n")
+                                if !isempty(prop.ref)
+                                    ref = "schema:$(entity(prop.ref))"
+                                    title = last(split(ref, ":"))
+                                    write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                                else
+                                    if !isempty(prop.description) write(f, "$(clean(prop.description))\n") end
+                                    write(f, "\\begin{itemize}\n")
+                                    write(f, "\\item \\textbf{Type} $(prop.type)\n")
+                                    if !isempty(prop.format) write(f, "\\item \\textbf{Format} $(prop.format)\n") end
+                                    if prop.type !== "object" && prop.type !== "array" && !isempty(prop.example) write(f, "\\item \\textbf{Example} \\verb|$(prop.example)|\n") end
+                                    write(f, "\\end{itemize}\n")
+                                end
+                            end
                             write(f, "\\end{itemize}\n")
                         end
 
@@ -373,17 +421,6 @@ function latex(schema::Schema, key::String, f::IOStream)
         false
     end
 
-    function clean(s::String)::String
-        ret = replace(s, "&" => "\\&")
-        ret = replace(ret, "\$" => "\\\$")
-        ret = replace(s, "[" => "\\[")
-        ret = replace(s, "]" => "\\]")
-        ret = replace(s, "{" => "\\{")
-        ret = replace(s, "}" => "\\}")
-        ret = replace(s, "_" => "\\textunderscore ")
-        replace(ret, "#" => "\\#")
-    end
-
     function refkey(k::String)::String
         res = entity(k)
         if !startswith(res, "::") return res end
@@ -414,7 +451,7 @@ function latex(schema::Schema, key::String, f::IOStream)
   \\hline
 }
 \\tablelasttail{\\hline}
-\\tablecaption{Properties for $key::$clean(name)}
+\\tablecaption{Properties for $key::$(clean(name))}
 \\begin{supertabular}{|l|l|}
 Type & $(prop.type) \\\\
 \\hline Required & $(required(name)) \\\\
@@ -549,7 +586,7 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
     tags = collect_tag_paths(o)
 
     open(args["output"], "w") do f
-        latex(o, args["author"], f)
+        latex(o, args["author"], args["footer"], f)
         oplabels = OrderedDict{String,String}()
 
         if !isempty(o.tagGroups)
@@ -571,14 +608,14 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
             if !isempty(tag.description) write(f, "\\begin{quote}$(convert(tag.description))\\end{quote}\n") end
             if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
             for (p,pi) in tags[tag.name]
-                latex!(pi.get, p, oplabels, f)
-                latex!(pi.put, p, oplabels, f)
-                latex!(pi.post, p, oplabels, f)
-                latex!(pi.delete, p, oplabels, f)
-                latex!(pi.options, p, oplabels, f)
-                latex!(pi.head, p, oplabels, f)
-                latex!(pi.patch, p, oplabels, f)
-                latex!(pi.trace, p, oplabels, f)
+                latex!(pi.get, p, oplabels, "GET", f)
+                latex!(pi.put, p, oplabels, "PUT", f)
+                latex!(pi.post, p, oplabels, "POST", f)
+                latex!(pi.delete, p, oplabels, "DELETE", f)
+                latex!(pi.options, p, oplabels, "OPTIONS", f)
+                latex!(pi.head, p, oplabels, "HEAD", f)
+                latex!(pi.patch, p, oplabels, "PATCH", f)
+                latex!(pi.trace, p, oplabels, "TRACE", f)
             end
         end
 
