@@ -115,5 +115,38 @@ include("model.jl")
             r = findall("\\end{itemize}", out)
             @test size(r)[1] == 3
         end
+
+        @testset "Underscore within in-line code block" begin
+            line = """Since this is a full replace, the replacement document must be the full
+document (the `_id` field is optional)."""
+            out = model.convert(line)
+            @test """Since this is a full replace, the replacement document must be the full
+document (the \\texttt{\\textunderscore id} field is optional).""" == out
+        end
+
+        @testset "Complex multi-paragraph test" begin
+            line = """Structure for a general purpose replace request.  Replace is expressed
+as a combination of an update `filter` query (should return a single
+matching document), and the `replace` document to replace the existing
+document in the specified `database:collection`.
+
+Since this is a full replace, the replacement document must be the full
+document (the `_id` field is optional).
+
+The post-update document is retrieved (if `_id` is not included) to create
+the version history document."""
+
+            out = model.convert(line)
+            @test """Structure for a general purpose replace request.  Replace is expressed
+as a combination of an update \\texttt{filter} query (should return a single
+matching document), and the \\texttt{replace} document to replace the existing
+document in the specified \\texttt{database:collection}.
+
+Since this is a full replace, the replacement document must be the full
+document (the \\texttt{\\textunderscore id} field is optional).
+
+The post-update document is retrieved (if \\texttt{\\textunderscore id} is not included) to create
+the version history document.""" == out
+        end
     end
 end

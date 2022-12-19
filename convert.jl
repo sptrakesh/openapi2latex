@@ -109,25 +109,34 @@ function convert_style(line::String, delim::String, cmd::String)::String
 
     e = findnext(delim, line, r2)
     if e === nothing
-        out = "$(SubString(line, start, r1)) $(SubString(line, r2))"
+        @debug "No succeeding $delim after $r2."
+        return line
+    end
+
+    e2 = length(e) > 1 ? e[2] + 1 : e[1] + length(delim)
+    if start == r1
+        out = "$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
     else
-        e2 = length(e) > 1 ? e[2] + 1 : e[1] + length(delim)
-        if start == r1
-            out = "$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
-        else
-            out = "$(SubString(line, start, r1))$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
-        end
+        out = "$(SubString(line, start, r1))$cmd{$(SubString(line, r2, e[1]-1))}$(SubString(line, e2))"
     end
 
     return convert_style(out, delim, cmd)
 end
 
 function convert_style(line::String)::String
-    out = convert_style(line, "**", "\\textbf")
-    out = convert_style(out, "__", "\\textbf")
-    out = convert_style(out, "*", "\\textit")
-    out = convert_style(out, "_", "\\textit")
-    out = convert_style(out, "`", "\\texttt")
+    parts = Vector{String}()
+
+    for part in split(line, "\n\n")
+        out = convert_style("$part", "`", "\\texttt")
+        out = convert_style(out, "**", "\\textbf")
+        out = convert_style(out, "__", "\\textbf")
+        out = convert_style(out, "*", "\\textit")
+        out = convert_style(out, "_", "\\textit")
+
+        push!(parts, replace(out, "_" => "\\textunderscore "))
+    end
+
+    join(parts, "\n\n")
 end
 
 function convert(s::String)::String

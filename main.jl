@@ -29,17 +29,19 @@ function cmd_options()
 end
 
 function main()
-    args = cmd_options()
-    if args["debug"]
-        MiniLogger(minlevel = MiniLoggers.Debug,
-               format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
-    else
-        MiniLogger(minlevel = MiniLoggers.Info,
-               format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
+    @time begin
+        args = cmd_options()
+        if args["debug"]
+            MiniLogger(minlevel = MiniLoggers.Debug,
+                   format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
+        else
+            MiniLogger(minlevel = MiniLoggers.Info,
+                   format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
+        end
+        spec = load_all_file(args["input"]; dicttype=OrderedDict{Any,Any})
+        api = model.parse(spec)
+        model.generate!(api, args)
     end
-    spec = load_all_file(args["input"]; dicttype=OrderedDict{Any,Any})
-    api = model.parse(spec)
-    model.generate!(api, args)
 end
 
 main()
