@@ -22,8 +22,8 @@ function table(i::Info)::String
 """
     if !isempty(i.termsOfService.scheme) s = s * "\\hline Terms Of Service & \\url{$(uristring(i.termsOfService))} \\\\\n" end
     if !isempty(i.version) s = s * "\\hline Version & $(i.version) \\\\\n" end
-    if !isempty(i.license.name) && !isempty(i.license.identifier) s = s * "\\hline License & $(i.license.identifier) \\\\\n"
-    elseif !isempty(i.license.name) && !isempty(i.license.url.scheme) s = s * "\\hline License & \\href{$(i.license.name)}{$(uristring(i.license.url))} \\\\\n"
+    if !isempty(i.license.identifier) s = s * "\\hline License & $(i.license.identifier) \\\\\n"
+    elseif !isempty(i.license.name) && !isempty(i.license.url.scheme) s = s * "\\hline License & \\href{$(uristring(i.license.url))}{$(i.license.name)} \\\\\n"
     end
     s * """\\hline
 \\end{supertabular}
