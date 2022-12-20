@@ -1,6 +1,8 @@
+__precompile__(true)
+
 import ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 import OrderedCollections: OrderedDict
-import YAML: load_all_file
+import YAML: load_file
 using MiniLoggers
 
 include("model/model.jl")
@@ -43,7 +45,7 @@ function main(args)
             MiniLogger(minlevel = MiniLoggers.Info,
                    format = "{[{timestamp}] [{level}] [:func}{{module}@{basename}:{line:cyan}:light_green}]: {message}") |> global_logger
         end
-        spec = load_all_file(opts["input"]; dicttype=OrderedDict{Any,Any})
+        spec = load_file(opts["input"]; dicttype=OrderedDict{Any,Any})
         api = model.parse(spec)
         model.generate!(api, opts)
     end

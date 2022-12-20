@@ -13,9 +13,12 @@ end
 function table(i::Info)::String
     if isempty(i.termsOfService.scheme) && isempty(i.version) && isempty(i.license.name) return "" end
     s = """\\section{Other Information}
-\\begin{table}[!h]
-\\centering
-\\begin{tabular}{|l|l|}
+\\begin{center}
+\\tablefirsthead{}
+\\tablehead{}
+\\tabletail{}
+\\tablecaption{API Information}
+\\begin{supertabular}{|l|l|}
 """
     if !isempty(i.termsOfService.scheme) s = s * "\\hline Terms Of Service & \\url{$(uristring(i.termsOfService))} \\\\\n" end
     if !isempty(i.version) s = s * "\\hline Version & $(i.version) \\\\\n" end
@@ -23,18 +26,20 @@ function table(i::Info)::String
     elseif !isempty(i.license.name) && !isempty(i.license.url.scheme) s = s * "\\hline License & \\href{$(i.license.name)}{$(uristring(i.license.url))} \\\\\n"
     end
     s * """\\hline
-\\end{tabular}
-\\caption{API Information}
-\\end{table}
+\\end{supertabular}
+\\end{center}
 """
 end
 
 function servers(o::OpenAPI)::String
     if isempty(o.servers) return "" end
 
-    t = """\\begin{table}[ht]
-\\centering
-\\begin{tabular}{|l|l|}
+    t = """\\begin{center}
+\\tablefirsthead{}
+\\tablehead{}
+\\tabletail{}
+\\tablecaption{Server Information}
+\\begin{supertabular}{|l|l|}
 """
 
     for s in o.servers
@@ -42,9 +47,8 @@ function servers(o::OpenAPI)::String
     end
 
     t * """\\hline
-\\end{tabular}
-\\caption{Server Information}
-\\end{table}
+\\end{supertabular}
+\\end{center}
 """
 end
 
@@ -52,9 +56,12 @@ end
 function security_schemes(c::Components)::String
     if isempty(c.securitySchemes) return "" end
 
-    t = """\\begin{table}[ht]
-\\centering
-\\begin{tabular}{|l|l|l|}
+    t = """\\begin{center}
+\\tablefirsthead{}
+\\tablehead{}
+\\tabletail{}
+\\tablecaption{\\label{table::security::schemes}Security Schemes}
+\\begin{supertabular}{|l|l|l|}
 """
     for (key, s) in c.securitySchemes
         count = 0
@@ -75,9 +82,8 @@ function security_schemes(c::Components)::String
     end
 
     t * """\\hline
-\\end{tabular}
-\\caption{\\label{table::security::schemes}Security Schemes}
-\\end{table}
+\\end{supertabular}
+\\end{center}
 """
 end
 

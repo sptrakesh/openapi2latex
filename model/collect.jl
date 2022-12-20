@@ -60,10 +60,8 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
     if haskey(_processed, fn)
         yaml = _processed[fn]
     else
-        it = load_all_file(fn; dicttype=OrderedDict{Any,Any})
-        (y, state) = iterate(it)
-        _processed[fn] = y
-        yaml = y
+        yaml = load_file(fn; dicttype=OrderedDict{Any,Any})
+        _processed[fn] = yaml
     end
 
     if r === nothing

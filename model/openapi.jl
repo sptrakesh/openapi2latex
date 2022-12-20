@@ -1,4 +1,4 @@
-import YAML: YAMLDocIterator, iterate, load_all_file
+import YAML: load_file
 import URIs: uristring
 
 mutable struct Tag <: Comparable
@@ -133,10 +133,7 @@ end
 OpenAPI() = OpenAPI("", Info(), "", Vector{Server}(), OrderedDict{String,PathItem}(), OrderedDict{String,PathItem}(),
     Components(), Vector{SecurityRequirement}(), Vector{Tag}(), ExternalDocumentation(), Vector{TagGroup}())
 
-function parse(it::YAMLDocIterator)::OpenAPI
-    (yaml, state) = iterate(it)
-    @debug "YAML iterator state: $state"
-
+function parse(yaml::OrderedDict{Any,Any})::OpenAPI
     api = OpenAPI()
 
     for (key, value) in yaml
