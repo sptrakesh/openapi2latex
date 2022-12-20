@@ -68,6 +68,7 @@ The following options are supported by the [main.jl](main.jl) script:
 * `--input | -i` - **Required**. The main OpenAPI specification file to parse.
 * `--output | -o` - **Required**. The output LaTeX file to generate.  Best to place this at another location than the api specs.
 * `--author | -a` - The author credit to show on the titlepage.
+* `--footer | -f` - The right side footer text to display for the document.
 * `--debug | -d` - Show debug log messages.
 
 ## Extensions
