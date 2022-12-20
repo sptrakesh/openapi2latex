@@ -1,12 +1,13 @@
 function clean(s::String)::String
     ret = replace(s, "&" => "\\&")
     ret = replace(ret, "\$" => "\\\$")
-    ret = replace(s, "[" => "\\[")
-    ret = replace(s, "]" => "\\]")
-    ret = replace(s, "{" => "\\{")
-    ret = replace(s, "}" => "\\}")
-    ret = replace(s, "_" => "\\textunderscore ")
-    replace(ret, "#" => "\\#")
+    ret = replace(ret, "[" => "\\[")
+    ret = replace(ret, "]" => "\\]")
+    ret = replace(ret, "{" => "\\{")
+    ret = replace(ret, "}" => "\\}")
+    ret = replace(ret, "_" => "\\textunderscore ")
+    ret = replace(ret, "#" => "\\#")
+    replace(ret, "%" => "\\%")
 end
 
 function table(i::Info)::String
@@ -203,7 +204,11 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                 if p.schema.minimum isa Number write(f, "\\item \\textit{minimum} - $(p.schema.minimum)\n") end
                 if !isempty(p.schema.pattern) write(f, "\\item \\textit{pattern} - \\texttt{$(p.schema.pattern)}\n") end
                 if !isempty(p.schema.format) write(f, "\\item \\textit{format} - $(p.schema.format)\n") end
-                if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
+                if p.schema.example isa String
+                    if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
+                else
+                    write(f, "\\item \\textit{example} - \\texttt{$(json(p.schema.example))}\n")
+                end
                 if !isempty(p.schema.default) write(f, "\\item \\textit{default} - \\texttt{$(p.schema.default)}\n") end
                 write(f, "\\end{description}\n")
             end
@@ -251,9 +256,6 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                         title = last(split(ref, ":"))
                         write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref}\n\n")
                     else
-                        if !isempty(m.schema.summary) write(f, "$(convert(m.schema.summary))\n\n") end
-                        if !isempty(m.schema.description) write(f, "$(convert(m.schema.description))\n\n") end
-
                         if !isempty(m.schema.properties)
                             write(f, "\\begin{itemize}\n")
                             for (p, prop) in m.schema.properties
@@ -261,12 +263,30 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                                 if !isempty(prop.ref)
                                     ref = "schema:$(entity(prop.ref))"
                                     title = last(split(ref, ":"))
-                                    write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                                    write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema.\n")
                                 else
-                                    if !isempty(prop.description) write(f, "$(clean(prop.description))\n") end
+                                    if !isempty(prop.description) write(f, "$(convert(prop.description))\n") end
                                     write(f, "\\begin{itemize}\n")
                                     write(f, "\\item \\textbf{Type} $(prop.type)\n")
                                     if !isempty(prop.format) write(f, "\\item \\textbf{Format} $(prop.format)\n") end
+
+                                    if !isempty(prop.properties)
+                                        write(f, "\\begin{itemize}\n")
+
+                                        for (ppk, pp) in prop.properties
+                                            write(f, "\\item \\textbf{$(clean(ppk))} ")
+                                            if !isempty(pp.ref)
+                                                ref = "schema:$(entity(pp.ref))"
+                                                title = last(split(ref, ":"))
+                                                write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema.\n")
+                                            else
+                                                write(f, " - $(pp.type)\n")
+                                            end
+                                        end
+
+                                        write(f, "\\end{itemize}\n")
+                                    end
+
                                     if prop.type !== "object" && prop.type !== "array" && !isempty(prop.example) write(f, "\\item \\textbf{Example} \\verb|$(prop.example)|\n") end
                                     write(f, "\\end{itemize}\n")
                                 end
@@ -332,7 +352,7 @@ See table \\ref{$id:responses:table} for response codes and data.
                                 if !isempty(prop.ref)
                                     ref = "schema:$(entity(prop.ref))"
                                     title = last(split(ref, ":"))
-                                    write(f, "\\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema. \\\\\n")
+                                    write(f, " - \\textbf{$title}. See chapter \\ref{$ref} on \\pageref{$ref} for schema.\n")
                                 else
                                     if !isempty(prop.description) write(f, "$(clean(prop.description))\n") end
                                     write(f, "\\begin{itemize}\n")
@@ -553,8 +573,8 @@ function codesamples(o::OpenAPI, tags::OrderedDict{String,Vector{Tuple{String,Pa
         write(f, "\\section{\\label{codesamples:$(o.operationId)}$(o.operationId)}\n")
 
         for cs in o.codeSamples
-            key = cs["lang"]
-            source = cs["source"]
+            key = isempty(cs.label) ? cs.lang : cs.label
+            source = cs.source
             write(f, "\\subsection{$key}\n")
             write(f, "\\begin{lstlisting}\n$source\n\\end{lstlisting}\n")
         end

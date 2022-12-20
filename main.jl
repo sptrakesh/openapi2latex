@@ -3,7 +3,7 @@ import OrderedCollections: OrderedDict
 import YAML: load_all_file
 using MiniLoggers
 
-include("model.jl")
+include("model/model.jl")
 
 function cmd_options()
     s = ArgParseSettings()

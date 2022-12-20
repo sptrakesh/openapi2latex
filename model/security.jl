@@ -87,11 +87,3 @@ function parse!(s::SecurityScheme, data::OrderedDict{Any,Any})
         if key == "openIdConnectUrl" s.openIdConnectUrl = URI(value) end
     end
 end
-
-function parse!(s::Vector{SecurityRequirement}, data::Vector{OrderedDict{Any,Any}})
-    for d in data
-        sr = SecurityRequirement()
-        parse!(sr, d)
-        push!(s, sr)
-    end
-end

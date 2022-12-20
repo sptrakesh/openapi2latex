@@ -17,15 +17,6 @@ function parse!(r::RequestBody, data::OrderedDict{Any,Any})
     end
 end
 
-function parse!(r::RequestBody, data::OrderedDict{Any,Any})
-    for (key,value) in data
-        if key == "\$ref" p.ref = value end
-        if key == "desription" r.description = value end
-        if key == "content" parse!(r.content, value) end
-        if key == "required" r.required = value end
-    end
-end
-
 mutable struct Link <: Comparable
     operationRef::String
     operationId::String
@@ -85,6 +76,30 @@ function parse!(r::OrderedDict{String,Response}, data::OrderedDict{Any,Any})
     end
 end
 
+mutable struct CodeSample
+    lang::String
+    label::String
+    source::String
+end
+
+CodeSample() = CodeSample("", "", "")
+
+function parse!(c::CodeSample, data::OrderedDict{Any,Any})
+    for (key,value) in data
+        if key == "lang" c.lang = value end
+        if key == "label" c.label = value end
+        if key == "source" c.source = value end
+    end
+end
+
+function parse!(c::Vector{CodeSample}, data::Vector{OrderedDict{Any,Any}})
+    for d in data
+        cs = CodeSample()
+        parse!(cs, d)
+        push!(c, cs)
+    end
+end
+
 mutable struct Operation{PI<:CircularReference} <: Comparable
     tags::Vector{String}
     summary::String
@@ -98,12 +113,12 @@ mutable struct Operation{PI<:CircularReference} <: Comparable
     deprecated::Bool
     security::Union{Vector{SecurityRequirement},Nothing}
     servers::Vector{Server}
-    codeSamples::Vector{OrderedDict{String,Any}}
+    codeSamples::Vector{CodeSample}
 end
 
 Operation() = Operation(Vector{String}(), "", "", nothing, "", Vector{Parameter}(),
     nothing, OrderedDict{String,Response}(), OrderedDict{String,PathItem}(), false,
-    nothing, Vector{Server}(), Vector{OrderedDict{String,Any}}())
+    nothing, Vector{Server}(), Vector{CodeSample}())
 
 function parse!(o::Operation, data::OrderedDict{Any,Any})
     for (key, value) in data
@@ -125,13 +140,7 @@ function parse!(o::Operation, data::OrderedDict{Any,Any})
             @info "Parsed security for operation $(o.operationId); $(json(o.security))"
         end
         if key == "servers" parse!(o.servers, value) end
-        if key == "x-codeSamples"
-            for cs in value
-                d = OrderedDict{String,Any}()
-                for (k,v) in cs d["$k"] = v end
-                push!(o.codeSamples, d)
-            end
-        end
+        if key == "x-codeSamples" parse!(o.codeSamples, value) end
     end
 end
 

@@ -146,6 +146,7 @@ function convert(s::String)::String
     processed = convert_bullets(processed)
     processed = convert_link(processed)
     processed = replace(processed, "#" => "\\#")
+    processed = replace(processed, "%" => "\\%")
 
     return convert_style(processed)
 end

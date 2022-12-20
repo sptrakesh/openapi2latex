@@ -1,6 +1,6 @@
 using Test
 
-include("model.jl")
+include("model/model.jl")
 
 @testset "Conversion tests" begin
     @testset "Style conversion tests" begin
