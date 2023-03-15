@@ -114,11 +114,12 @@ mutable struct Operation{PI<:CircularReference} <: Comparable
     security::Union{Vector{SecurityRequirement},Nothing}
     servers::Vector{Server}
     codeSamples::Vector{CodeSample}
+    sinceVersion::String
 end
 
 Operation() = Operation(Vector{String}(), "", "", nothing, "", Vector{Parameter}(),
     nothing, OrderedDict{String,Response}(), OrderedDict{String,PathItem}(), false,
-    nothing, Vector{Server}(), Vector{CodeSample}())
+    nothing, Vector{Server}(), Vector{CodeSample}(), "")
 
 function parse!(o::Operation, data::OrderedDict{Any,Any})
     for (key, value) in data
@@ -141,6 +142,7 @@ function parse!(o::Operation, data::OrderedDict{Any,Any})
         end
         if key == "servers" parse!(o.servers, value) end
         if key == "x-codeSamples" parse!(o.codeSamples, value) end
+        if key == "x-since-version" o.sinceVersion = value end
     end
 end
 

@@ -28,6 +28,9 @@ function cmd_options()
             arg_type = String
             required = false
             default = "Proprietary and Confidential"
+        "--operation-summary", "-s"
+        help = "Use operation summary as title instead of operationId."
+        action = :store_true
         "--debug", "-d"
         help = "Enable debug log level"
         action = :store_true

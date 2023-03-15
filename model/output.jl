@@ -126,7 +126,7 @@ $(security_schemes(o.components))
 """)
 end
 
-function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}, method::String, f::IOStream)
+function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}, method::String, use_summary::Bool, f::IOStream)
     if isempty(o.operationId) return end
 
     p = replace(path, "{" => "\\{")
@@ -141,8 +141,21 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
     end
 
     id = "opertion:$(o.operationId)"
-    write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
-    if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+    if isempty(o.summary)
+        write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
+    else
+        if use_summary
+            cs = convert(o.summary)
+            if length(cs) > 80
+                write(f, "\n\\section[$id]{\\label{$id}$cs}\n")
+            else
+                write(f, "\n\\section{\\label{$id}$cs}\n")
+            end
+        else
+            write(f, "\n\\section{\\label{$id}$(o.operationId)}\n")
+            if !isempty(o.summary) write(f, "\\begin{quote}$(convert(o.summary))\\end{quote}\n") end
+        end
+    end
 
     write(f, """\\begin{minipage}{\\textwidth}
 \\tablefirsthead{}
@@ -170,6 +183,10 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
         else
             write(f, "Security & $sec\\footnote{See table \\ref{table::security::schemes} on page \\pageref{table::security::schemes}}\\\\\n")
         end
+    end
+
+    if !isempty(o.sinceVersion)
+        write(f, "Since Version & $(o.sinceVersion)\\\\\n")
     end
 
     write(f, """\\end{supertabular}
@@ -437,6 +454,7 @@ function latex(schema::Schema, key::String, f::IOStream)
     id = "schema:$key"
     write(f, "\n\\chapter{\\label{$id}$(isempty(schema.title) ? key : schema.title)}\n")
     if !isempty(schema.summary) write(f, "\\begin{quote}$(convert(schema.summary))\\end{quote}\n") end
+    if !isempty(schema.sinceVersion) write(f, "\\begin{quote}\\textbf{Since Version:} $(schema.sinceVersion)\\end{quote}\n") end
     if !isempty(schema.description) write(f, "$(convert(schema.description))\n") end
     if isempty(schema.properties) return end
 
@@ -634,14 +652,14 @@ function generate!(o::OpenAPI, args::Dict{String,Any})
             if !isempty(tag.description) write(f, "\\begin{quote}$(convert(tag.description))\\end{quote}\n") end
             if !haskey(tags, tag.name) @warn "No operations found for Tag with name $(tag.name)!"; continue end
             for (p,pi) in tags[tag.name]
-                latex!(pi.get, p, oplabels, "GET", f)
-                latex!(pi.put, p, oplabels, "PUT", f)
-                latex!(pi.post, p, oplabels, "POST", f)
-                latex!(pi.delete, p, oplabels, "DELETE", f)
-                latex!(pi.options, p, oplabels, "OPTIONS", f)
-                latex!(pi.head, p, oplabels, "HEAD", f)
-                latex!(pi.patch, p, oplabels, "PATCH", f)
-                latex!(pi.trace, p, oplabels, "TRACE", f)
+                latex!(pi.get, p, oplabels, "GET", args["operation-summary"], f)
+                latex!(pi.put, p, oplabels, "PUT", args["operation-summary"], f)
+                latex!(pi.post, p, oplabels, "POST", args["operation-summary"], f)
+                latex!(pi.delete, p, oplabels, "DELETE", args["operation-summary"], f)
+                latex!(pi.options, p, oplabels, "OPTIONS", args["operation-summary"], f)
+                latex!(pi.head, p, oplabels, "HEAD", args["operation-summary"], f)
+                latex!(pi.patch, p, oplabels, "PATCH", args["operation-summary"], f)
+                latex!(pi.trace, p, oplabels, "TRACE", args["operation-summary"], f)
             end
         end
 

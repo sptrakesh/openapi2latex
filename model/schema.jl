@@ -68,13 +68,14 @@ mutable struct Schema <: Comparable
     properties::OrderedDict{String,Schema}
     items::Union{Schema,Nothing}
     dialect::String
+    sinceVersion::String
 end
 
 Schema() = Schema(Discriminator(), XML(), ExternalDocumentation(), "", "", "", "", "",
     Vector{String}(), nothing, nothing, nothing, nothing, nothing, nothing, "", nothing, nothing,
     "", Vector{String}(), Vector{Schema}(), Vector{Schema}(), Vector{Schema}(),
     nothing, nothing, nothing, nothing, "", "",
-    URI(), OrderedDict{String,Schema}(), nothing, "")
+    URI(), OrderedDict{String,Schema}(), nothing, "", "")
 
 function parse!(s::Schema, data::OrderedDict{Any,Any})
     for (key,value) in data
@@ -148,6 +149,7 @@ function parse!(s::Schema, data::OrderedDict{Any,Any})
             parse!(s.items, value)
         end
         if key == "\$schema" s.dialect = value end
+        if key == "x-since-version" s.sinceVersion = value end
     end
 end
 
