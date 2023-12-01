@@ -552,6 +552,8 @@ Type & $(prop.type) \\\\
             write(f, "\\end{itemize} \\\\\n")
         end
 
+        if !isempty(prop.sinceVersion) write(f, "\\hline Since Version & $(prop.sinceVersion) \\\\\n") end
+
         write(f, """
 \\end{supertabular}
 \\end{center}

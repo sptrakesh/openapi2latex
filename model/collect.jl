@@ -90,7 +90,7 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
     function populate(schema::Schema)::Union{String,Nothing}
         r = findfirst("#", schema.ref)
         rpath = "$(SubString(schema.ref, r[1]+2))"
-        @debug "Populating schema for $rpath"
+        @debug "Populating schema for $rpath from $(schema.ref)"
         parts = split(rpath, "/")
         res::Union{String,Nothing} = nothing
 
