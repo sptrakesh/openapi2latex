@@ -48,7 +48,20 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
         fn = r === nothing ? joinpath(dirname(path), m.ref) : joinpath(dirname(path), SubString(m.ref, 1, r[1] - 1))
     end
 
-    if !isfile(fn) @warn "File $fn does not exist!"; return end
+    if !isfile(fn)
+        hp = findfirst("paths", fn)
+        if !isnothing(hp)
+            fn = replace(fn, "paths" => "schemas")
+            @debug "Paths replaced with schemas $fn"
+            if !isfile(fn)
+                @warn "File $fn does not exist!"
+                return
+            end
+        else
+            @warn "File $fn does not exist!"
+            return
+        end
+    end
 
     m.referenceURI = URI(fn)
     @debug "Set referenceURI for $(typeof(m)) to $fn"
@@ -140,7 +153,8 @@ function follow_reference!(m::Comparable, path::String, key::String)::OrderedDic
                     end
                 end
             else
-                uri = isempty(uristring(sc.referenceURI)) ? uristring(sc.referenceURI) : uristring(schema.referenceURI)
+                @debug "URL bases: sc -> $(sc.referenceURI), schema -> $(schema.referenceURI), m -> $(m.referenceURI), path -> $(path)"
+                uri = isempty(uristring(sc.referenceURI)) ? uristring(schema.referenceURI) : uristring(sc.referenceURI)
                 if isempty(uri) uri = isempty(uristring(m.referenceURI)) ? path : uristring(m.referenceURI) end
                 @debug "Following external reference for $(sc.title) at $uri"
                 follow_reference!(sc, uri, k)

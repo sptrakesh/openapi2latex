@@ -230,7 +230,10 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                 if p.schema.example isa String
                     if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
                 else
-                    write(f, "\\item \\textit{example} - \\texttt{$(json(p.schema.example))}\n")
+                    str = json(p.schema.example)
+                    if isnothing(findfirst("as documented in properties", str))
+                        write(f, "\\item \\textit{example} - \\texttt{$(str)}\n")
+                    end
                 end
                 if !isempty(p.schema.default) write(f, "\\item \\textit{default} - \\texttt{$(p.schema.default)}\n") end
                 write(f, "\\end{description}\n")
@@ -560,10 +563,13 @@ Type & $(prop.type) \\\\
 """)
 
         if prop.example isa OrderedDict{Any,Any}
-            write(f, """\\subsubsection*{Code Example}
+            str = json(prop.example, 2)
+            if isnothing(findfirst("as documented in properties", str))
+                write(f, """\\subsubsection*{Code Example}
 \\begin{lstlisting}
-$(json(prop.example, 2))
+$(str)
 \\end{lstlisting}""")
+            end
         end
     end
 
@@ -611,6 +617,7 @@ function codesamples(o::OpenAPI, tags::OrderedDict{String,Vector{Tuple{String,Pa
 
     for tag in o.tags
         @debug "Adding code samples for tag $(tag.name)"
+        if !haskey(tags, tag.name) continue end
 
         for (p,pi) in tags[tag.name]
             codefor(pi.get, tag.name, true)
