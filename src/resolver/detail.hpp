@@ -24,7 +24,7 @@ namespace spt::resolver::detail
     }
 
     std::string fn;
-    auto it = entity.ref.find( '#' );
+    const auto it = entity.ref.find( '#' );
 
     if ( entity.ref.front() == '#' ) fn = cleanedPath;
     else
@@ -63,6 +63,12 @@ namespace spt::resolver::detail
 
     const auto root = expected.value();
     auto node = root;
+
+    if ( it == std::string::npos )
+    {
+      parser::parse( entity, root );
+      return;
+    }
 
     std::size_t idx = 0;
     for ( auto ref : parts )

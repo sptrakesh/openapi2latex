@@ -17,4 +17,6 @@ void spt::resolver::resolve( model::Schema& entity, std::string_view path )
   for ( auto& child : entity.allOf ) resolve( child, fp.empty() ? path : fp );
   for ( auto& child : entity.oneOf ) resolve( child, fp.empty() ? path : fp );
   for ( auto& child : entity.anyOf ) resolve( child, fp.empty() ? path : fp );
+
+  for ( auto& [_, prop] : entity.properties ) resolve( prop, fp.empty() ? path : fp );
 }

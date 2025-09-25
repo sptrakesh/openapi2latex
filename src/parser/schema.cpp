@@ -160,7 +160,7 @@ namespace
           m.oneOf.reserve( 4 );
           for ( const auto& p : child.children() )
           {
-            if ( p.is_map() ) m.allOf.emplace_back( spt::parser::parse<model::Schema>( p ) );
+            if ( p.is_map() ) m.oneOf.emplace_back( spt::parser::parse<model::Schema>( p ) );
           }
         }
 
@@ -169,7 +169,7 @@ namespace
           m.anyOf.reserve( 4 );
           for ( const auto& p : child.children() )
           {
-            if ( p.is_map() ) m.allOf.emplace_back( spt::parser::parse<model::Schema>( p ) );
+            if ( p.is_map() ) m.anyOf.emplace_back( spt::parser::parse<model::Schema>( p ) );
           }
         }
       }

@@ -128,7 +128,7 @@ int main( int argc, char const * const * argv )
       Opt(config.cmark)["-m"]["--use-cmark"]("Use cmark to convert info.description to latex.") |
       Opt(console)["-c"]["--console"]("Log to console (default off)") |
       Opt(logLevel, "info")["-l"]["--log-level"]("Log level to use [debug|info|warn|critical] (default info).") |
-      Opt(dir, "/tmp/")["-o"]["--log-dir"]("Log directory (default /tmp/)");
+      Opt(dir, "/tmp/")["-d"]["--log-dir"]("Log directory (default /tmp/)");
 
   if ( auto result = options.parse( clara::Args( argc, argv ) ); !result )
   {
