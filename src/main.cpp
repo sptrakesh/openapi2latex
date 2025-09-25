@@ -103,7 +103,7 @@ namespace
 
       const auto outfile = spt::output::generate( openapi, conf );
       LOG_INFO << "Generated output file " << outfile;
-      LOG_INFO << "Run `pdflatex -interaction=nonstopmode` multiple times until references are resolved." << outfile;
+      LOG_INFO << "Run `pdflatex` multiple times until references are resolved." << outfile;
 
       return 0;
     }

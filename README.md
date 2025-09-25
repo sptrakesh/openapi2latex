@@ -41,6 +41,9 @@ The following options are supported by the [main.jl](main.jl) script:
 * `--author | -a` - The author credit to show on the titlepage.
 * `--footer | -f` - The right side footer text to display for the document.
 * `--operation-summary | -s` - A flag to indicate that **Operation** *summary* should be used as section headings instead of *operationId*.
+* `--use-cmark | -m` - Use [cmark](https://github.com/commonmark/cmark) to convert `info.description` to latex.
+  Recommended option, since the description can be quite long and complicated, and `cmark` should have much more 
+  comprehensive support for converting markdown to latex.
 * `--debug | -d` - Show debug log messages.
 
 ## Extensions

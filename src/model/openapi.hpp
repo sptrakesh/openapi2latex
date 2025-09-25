@@ -11,7 +11,6 @@
 #include "pathitem.hpp"
 #include "requestbody.hpp"
 #include "response.hpp"
-#include "schema.hpp"
 #include "security.hpp"
 #include "tag.hpp"
 

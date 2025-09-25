@@ -14,6 +14,6 @@ namespace spt::model
     std::string _referenceURI;
     std::string ref;
     std::string description;
-    bool required;
+    bool required = false;
   };
 }

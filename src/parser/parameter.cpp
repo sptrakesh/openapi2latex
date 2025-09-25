@@ -29,5 +29,6 @@ void spt::parser::parse( model::Parameter& m, c4::yml::ConstNodeRef node )
         m.examples.try_emplace( std::string{ key }, parse<model::Example>( ex ) );
       }
     }
+    if ( child.key() == "schema" ) m.schema = parse<model::Schema>( child );
   }
 }

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "example.hpp"
+#include "schema.hpp"
 
 #include <map>
 
@@ -12,6 +13,7 @@ namespace spt::model
 {
   struct Parameter
   {
+    std::optional<Schema> schema;
     std::map<std::string, Example, std::less<>> examples;
     std::any example;
     std::string _referenceURI;
@@ -20,10 +22,10 @@ namespace spt::model
     std::string in;
     std::string description;
     std::string style;
-    bool required;
-    bool deprecated;
-    bool allowEmptyValue;
-    bool explode;
-    bool allowReserved;
+    bool required = false;
+    bool deprecated = false;
+    bool allowEmptyValue = false;
+    bool explode = false;
+    bool allowReserved = false;
   };
 }

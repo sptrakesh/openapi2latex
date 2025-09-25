@@ -17,13 +17,19 @@ namespace spt::resolver::detail
   {
     if ( filePath.empty() || entity.ref.empty() ) return;
 
+    auto cleanedPath = std::string{ filePath };
+    if ( auto pos = cleanedPath.find( '#' ); pos != std::string::npos )
+    {
+      cleanedPath = cleanedPath.substr( 0, pos );
+    }
+
     std::string fn;
     auto it = entity.ref.find( '#' );
 
-    if ( entity.ref.front() == '#' ) fn = filePath;
+    if ( entity.ref.front() == '#' ) fn = cleanedPath;
     else
     {
-      auto p = std::filesystem::path( filePath ).parent_path();
+      auto p = std::filesystem::path( cleanedPath ).parent_path();
 
       if ( it == std::string::npos )
       {
@@ -42,11 +48,11 @@ namespace spt::resolver::detail
     }
 
     entity._referenceURI = it == std::string::npos ? fn : std::format( "{}{}", fn, entity.ref.substr( it ) );
-    LOG_INFO << "Reference URI: " << entity._referenceURI;
+    LOG_DEBUG << "Reference URI: " << entity._referenceURI;
 
     std::string refPath = it == std::string::npos ? "" : entity.ref.substr( it + 1 );
     auto parts = util::split( refPath, 4, "/" );
-    LOG_INFO << "Reference path: " << refPath << " parts: " << std::format( "{:n}", parts );
+    LOG_DEBUG << "Reference path: " << refPath << " parts: " << std::format( "{:n}", parts );
 
     const auto expected = FileCache::instance().yaml( fn );
     if ( !expected.has_value() )

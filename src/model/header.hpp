@@ -19,9 +19,9 @@ namespace spt::model
     std::any example;
     std::string description;
     std::string style;
-    bool required;
-    bool deprecated;
-    bool allowEmptyValue;
-    bool explode;
+    bool required = false;
+    bool deprecated = false;
+    bool allowEmptyValue = false;
+    bool explode = false;
   };
 }

@@ -27,8 +27,8 @@ namespace spt::model
     std::string name;
     std::string _namespace;
     std::string prefix;
-    bool attribute;
-    bool wrapped;
+    bool attribute = false;
+    bool wrapped = false;
   };
 
   struct Schema
@@ -43,6 +43,7 @@ namespace spt::model
     std::vector<Schema> anyOf;
     std::vector<std::string> required;
     std::vector<std::string> enumeration;
+    std::vector<std::any> examples;
     std::any example;
     std::any _default;
     std::string _referenceURI;
@@ -63,9 +64,9 @@ namespace spt::model
     std::optional<double> minLength;
     std::optional<double> maxItems;
     std::optional<double> minItems;
-    bool nullable;
-    bool readOnly;
-    bool writeOnly;
-    bool deprecated;
+    bool nullable = false;
+    bool readOnly = false;
+    bool writeOnly = false;
+    bool deprecated = false;
   };
 }

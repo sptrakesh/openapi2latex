@@ -31,6 +31,6 @@ namespace spt::model
     std::string description;
     std::string operationId;
     std::string sinceVersion;
-    bool deprecated;
+    bool deprecated = false;
   };
 }

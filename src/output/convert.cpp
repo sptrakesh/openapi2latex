@@ -32,10 +32,10 @@ namespace
         if ( !first ) result.append( "\n" );
         if ( line.empty() ) result.append( "\n" );
         else if ( line.starts_with( "# " ) ) result.append( R"(\section{)"sv ).append( line.substr( 2 ) ).append( "}\n" );
-        else if ( line.starts_with( "## " ) ) result.append( R"(\section{)"sv ).append( line.substr( 3 ) ).append( "}\n" );
-        else if ( line.starts_with( "### " ) ) result.append( R"(\section{)"sv ).append( line.substr( 4 ) ).append( "}\n" );
-        else if ( line.starts_with( "#### " ) ) result.append( R"(\subsection{)"sv ).append( line.substr( 5 ) ).append( "}\n" );
-        else if ( line.starts_with( "##### " ) ) result.append( R"(\subsubsection{)"sv ).append( line.substr( 6 ) ).append( "}\n" );
+        else if ( line.starts_with( "## " ) ) result.append( R"(\subsection{)"sv ).append( line.substr( 3 ) ).append( "}\n" );
+        else if ( line.starts_with( "### " ) ) result.append( R"(\subsubsection{)"sv ).append( line.substr( 4 ) ).append( "}\n" );
+        else if ( line.starts_with( "#### " ) ) result.append( R"(\paragraph{)"sv ).append( line.substr( 5 ) ).append( "}\n" );
+        else if ( line.starts_with( "##### " ) ) result.append( R"(\subparagraph{)"sv ).append( line.substr( 6 ) ).append( "}\n" );
         else result.append( line );
         first = false;
       }

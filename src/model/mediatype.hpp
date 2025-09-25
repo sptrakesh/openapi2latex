@@ -19,8 +19,8 @@ namespace spt::model
       std::map<std::string, Header, std::less<>> headers;
       std::string contentType;
       std::string style;
-      bool explode;
-      bool allowReserved;
+      bool explode = false;
+      bool allowReserved = false;
     };
 
     std::map<std::string, Example, std::less<>> examples;

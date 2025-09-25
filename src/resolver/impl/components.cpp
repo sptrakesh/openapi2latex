@@ -13,4 +13,5 @@ void spt::resolver::resolve( model::Components& entity, std::string_view path )
   for ( auto& [_, head] : entity.headers ) resolve( head, path );
   for ( auto& [_, resp] : entity.responses ) resolve( resp, path );
   for ( auto& [_, parm] : entity.parameters ) resolve( parm, path );
+  for ( auto& [_, req] : entity.requestBodies ) resolve( req, path );
 }

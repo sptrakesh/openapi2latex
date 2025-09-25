@@ -5,6 +5,8 @@
 #include "parser.hpp"
 #include "model/schema.hpp"
 
+#include "model/example.hpp"
+
 template <>
 spt::model::Discriminator spt::parser::parse( c4::yml::ConstNodeRef node )
 {
@@ -69,6 +71,16 @@ namespace
         if ( child.key() == "discriminator" ) m.discriminator = parser::parse<model::Discriminator>( child );
         if ( child.key() == "xml" ) m.xml = parser::parse<model::XML>( child );
         if ( child.key() == "externalDocs" ) m.externalDocs = parser::parse<model::ExternalDocumentation>( child );
+        if ( child.key() == "default" && child.has_val() ) m._default = std::string{ child.val().begin(), child.val().end() };
+        if ( child.key() == "example" && child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+        if ( child.key() == "examples" )
+        {
+          for ( const auto& ex : child.children() )
+          {
+            if ( !ex.has_val() ) continue;
+            m.examples.emplace_back( std::string{ ex.val().begin(), ex.val().end() } );
+          }
+        }
 
         if ( child.key() == "maximum" )
         {
