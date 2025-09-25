@@ -544,7 +544,7 @@ Type & $(prop.type) \\\\
         end
 
         if !isempty(prop.anyOf)
-            write(f, "\\hline One Of & \\begin{itemize}\n")
+            write(f, "\\hline Any Of & \\begin{itemize}\n")
             for sc in prop.anyOf
                 if isempty(sc.ref)
                     write(f, "\\item \\textbf{$(sc.title)}\n")
@@ -554,6 +554,19 @@ Type & $(prop.type) \\\\
             end
             write(f, "\\end{itemize} \\\\\n")
         end
+
+        if !isempty(prop.allOf)
+            write(f, "\\hline All Of & \\begin{itemize}\n")
+            for sc in prop.anyOf
+                if isempty(sc.ref)
+                    write(f, "\\item \\textbf{$(sc.title)}\n")
+                else
+                    write(f, "See section \\ref{schema:$(refkey(sc.ref))} on page \\pageref{schema:$(refkey(sc.ref))}.\n")
+                end
+            end
+                    write(f, "\\end{itemize} \\\\\n")
+        end
+
 
         if !isempty(prop.sinceVersion) write(f, "\\hline Since Version & $(prop.sinceVersion) \\\\\n") end
 

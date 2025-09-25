@@ -29,11 +29,11 @@ function cmd_options()
             required = false
             default = "Proprietary and Confidential"
         "--operation-summary", "-s"
-        help = "Use operation summary as title instead of operationId."
-        action = :store_true
+            help = "Use operation summary as title instead of operationId."
+            action = :store_true
         "--debug", "-d"
-        help = "Enable debug log level"
-        action = :store_true
+            help = "Enable debug log level"
+            action = :store_true
     end
     parse_args(s)
 end
