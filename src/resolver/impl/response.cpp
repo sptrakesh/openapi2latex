@@ -9,6 +9,7 @@
 template <>
 void spt::resolver::resolve( model::Response& entity, std::string_view path )
 {
-  for ( auto& [_, head] : entity.headers ) resolve( head, path );
-  for ( auto& [_, mt] : entity.content ) resolve( mt, path );
+  detail::resolve( entity, path );
+  for ( auto& [_, head] : entity.headers ) resolve( head, entity._referenceURI.empty() ? path : entity._referenceURI );
+  for ( auto& [_, mt] : entity.content ) resolve( mt, entity._referenceURI.empty() ? path : entity._referenceURI );
 }

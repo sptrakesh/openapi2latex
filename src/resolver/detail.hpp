@@ -75,7 +75,7 @@ namespace spt::resolver::detail
     {
       for ( const auto& child : node.children() )
       {
-        if ( child.key() == ref && child.is_map() )
+        if ( std::string_view{ child.key() } == ref && child.is_map() )
         {
           if ( idx == parts.size() - 1 ) parser::parse( entity, child );
           node = child;

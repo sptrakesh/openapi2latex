@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "util/rapidyaml.hpp"
-
 #include <boost/url/parse.hpp>
 #include <boost/url/url.hpp>
+#include <ryml.hpp>
+#include <ryml_std.hpp>
 
 namespace spt::parser
 {

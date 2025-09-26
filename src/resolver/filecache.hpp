@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "util/rapidyaml.hpp"
-
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <map>
+
+#include <ryml.hpp>
 
 namespace spt::resolver
 {

@@ -2,7 +2,6 @@
 // Created by Rakesh on 25/12/2021.
 //
 
-#define RYML_SINGLE_HDR_DEFINE_NOW
 #include "log/NanoLog.hpp"
 #include "output/output.hpp"
 #include "parser/parser.hpp"
