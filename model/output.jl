@@ -231,9 +231,7 @@ function latex!(o::Operation, path::String, oplabels::OrderedDict{String,String}
                     if !isempty(p.schema.example) write(f, "\\item \\textit{example} - \\texttt{$(p.schema.example)}\n") end
                 else
                     str = json(p.schema.example)
-                    if isnothing(findfirst("as documented in properties", str))
-                        write(f, "\\item \\textit{example} - \\texttt{$(str)}\n")
-                    end
+                    write(f, "\\item \\textit{example} - \\texttt{$(str)}\n")
                 end
                 if !isempty(p.schema.default) write(f, "\\item \\textit{default} - \\texttt{$(p.schema.default)}\n") end
                 write(f, "\\end{description}\n")
@@ -577,12 +575,10 @@ Type & $(prop.type) \\\\
 
         if prop.example isa OrderedDict{Any,Any}
             str = json(prop.example, 2)
-            if isnothing(findfirst("as documented in properties", str))
-                write(f, """\\subsubsection*{Code Example}
+            write(f, """\\subsubsection*{Code Example}
 \\begin{lstlisting}
 $(str)
 \\end{lstlisting}""")
-            end
         end
     end
 
