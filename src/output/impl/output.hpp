@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "model/configuration.hpp"
 #include "model/openapi.hpp"
 #include "output/output.hpp"
 
@@ -14,15 +15,24 @@
 
 namespace spt::output::impl
 {
-  std::expected<std::filesystem::path, std::string> responses( const model::OpenAPI& openapi, std::filesystem::path path );
-  void writeHeader( std::string_view name, const model::Header& header, std::ofstream& file );
-  void writeMediaType( std::string_view key, const model::MediaType& mt, std::ofstream& file );
-  void schemaExamples( const model::Schema& schema, std::ofstream& file );
-  void writeSchemaForAggregation( const model::Schema& schema, std::string_view title, std::ofstream& file );
-  void writeExample( const model::Example& example, std::ofstream& file );
-
+  void writeInput( const std::filesystem::path& path, std::ofstream& file );
   std::string clean( std::string text );
   std::string schemaTitle( const model::Schema& schema );
+
+  std::filesystem::path writeSchema( std::string_view key, const model::Schema& schema, std::filesystem::path path );
+  std::expected<std::filesystem::path, std::string> responses( const model::OpenAPI& openapi, std::filesystem::path path );
+
+  void tags( const std::filesystem::path& parent, const model::OpenAPI& openapi, std::ofstream& mainFile, const model::Configuration& conf );
+  void writeHeader( std::string_view name, const model::Header& header, std::ofstream& file );
+  void writeMediaType( std::string_view key, const model::MediaType& mt, std::ofstream& file );
+
+  void schemaExamples( const model::Schema& schema, std::ofstream& file );
+  void writeSchemaForAggregation( const model::Schema& schema, std::string_view title, std::ofstream& file );
+  void writeSchemaProperties( const model::Schema& schema, std::ofstream& file );
+  void writeSchemaAggregations( const model::Schema& schema, std::ofstream& file, bool eol = true );
+
+  void writeExample( const model::Example& example, std::ofstream& file );
+  void writeParameter( const model::Parameter& param, std::ofstream& file, bool initial = false );
 
   template <typename T>
   concept HasName = requires( T t )

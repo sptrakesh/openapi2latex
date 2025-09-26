@@ -17,15 +17,15 @@ two times to get cross-references resolved) for the output PDF document.  Also r
 document *index* if desired.
 
 ```shell
-oa2tex -i <path to openapi.yaml> -o <path to output directory> -c --use-cmark
+<path to>/oa2tex -i <path to openapi.yaml> -o <path to output directory> -c --use-cmark
 cd <path to output directory>
-pdflatex openapi.tex
+pdflatex -interaction=nonstopmode openapi
 makeindex openapi
-pdflatex openapi.tex
+pdflatex -interaction=nonstopmode openapi
 ```
 
 ## Structure
-The generated LaTeX file has the following structure (you can of course modify the output file as desired):
+The generated LaTeX files have the following structure (you can of course modify the output files as desired):
 
 * **Frontmatter** - Titlepage and table of contents.
 * **Mainmatter** - Contains two or three parts.
@@ -41,11 +41,14 @@ The generated LaTeX file has the following structure (you can of course modify t
   * **Code Samples** - If the `x-codeSamples` extension exists for operations, these are collected together into a third
     *part*.  Code samples are grouped together under each *tag* group, which is presented as a *chapter*.
 * **Backmatter** - List of tables, and optionally index.
-  *  **Index** - Operation ids and schema property names are automatically added to index.
+  *  **Index** - Operation ids and schema property names are added to index.
 
 See [openapi.pdf](openapi.pdf) for the PDF generated from the official 
 [petstore](https://github.com/SLdragon/example-openapi-spec/blob/main/petstore-official.yaml)
-specifications.
+specifications.  Note that the petstore sample has a markdown table in the information, which
+the embedded converter does not support.  This sample was generated using the `cmark` option.
+The cmark generated latex table has some issue, and I had to run latex in `nonstopmode`
+for the PDF to be generated.
 
 ## Usage
 The generator is written in C++ and has a dependency on the [Boost](https://boost.org/) libraries.

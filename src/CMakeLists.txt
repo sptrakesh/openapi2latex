@@ -5,6 +5,7 @@ FetchContent_Declare(ryml
   GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
   GIT_TAG master
   GIT_SHALLOW FALSE  # ensure submodules are checked out
+  EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(ryml)
 

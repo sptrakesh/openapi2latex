@@ -3,12 +3,449 @@
 //
 
 #include "output.hpp"
+#include "log/NanoLog.hpp"
 #include "util/split.hpp"
 
 using std::operator ""s;
 using std::operator ""sv;
 
-std::string spt::output::impl::schemaTitle( const spt::model::Schema& schema )
+namespace
+{
+  namespace pschema
+  {
+    void writeSchemaInfo( const spt::model::Schema& schema, std::ofstream& file )
+    {
+      if ( !schema.summary.empty() )
+      {
+        const auto sum = spt::output::convert( schema.summary );
+        auto line = R"(\begin{quote})"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( sum.data(), static_cast<std::streamsize>( sum.size() ) );
+        line = R"(\end{quote})"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( "\n", 1 );
+      }
+
+      if ( !schema.sinceVersion.empty() )
+      {
+        auto line = R"(\begin{quote}\textbf{Since Version:} )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( schema.sinceVersion.data(), static_cast<std::streamsize>( schema.sinceVersion.size() ) );
+        line = R"(\end{quote})"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( "\n", 1 );
+      }
+
+      if ( !schema.description.empty() )
+      {
+        const auto sum = spt::output::convert( schema.description );
+        file.write( sum.data(), static_cast<std::streamsize>( sum.size() ) );
+        file.write( "\n", 1 );
+      }
+    }
+
+    void writeSchemaExample( const spt::model::Schema& schema, std::ofstream& file )
+    {
+      if ( schema.examples.empty() ) return;
+
+      auto line = R"(\subsubsection*{Examples}
+\begin{lstlisting}
+)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+      for ( const auto& example : schema.examples )
+      {
+        if ( !example.has_value() ) continue;
+        const auto str = std::any_cast<std::string>( example );
+        file.write( str.data(), static_cast<std::streamsize>( str.size() ) );
+        line = R"(\end{lstlisting}
+
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+    }
+
+    void writeSchemaAggregationsTable( const spt::model::Schema& schema, std::ofstream& file )
+    {
+      const auto process = [&file]( const std::vector<spt::model::Schema>& vector, std::string_view text )
+      {
+        if ( vector.empty() ) return;
+
+        auto line = R"(\hline )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( text.data(), static_cast<std::streamsize>( text.size() ) );
+
+        line = R"( & \begin{itemize}
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+        for ( const auto& child : vector )
+        {
+          const auto title = spt::output::impl::schemaTitle( child );
+
+          if ( child._referenceURI.empty() )
+          {
+            spt::output::impl::writeSchemaForAggregation( child, title, file );
+            continue;
+          }
+
+          const auto key = spt::output::impl::referenceKey( child, "schema" );
+          line = R"(\item \textbf{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
+          line = R"(}. See chapter \ref{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+          line = R"(} on page \pageref{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+          file.write( "}\n", 2 );
+        }
+
+        line = R"(\end{itemize} \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      };
+
+      process( schema.oneOf, "One of" );
+      process( schema.anyOf, "Any of" );
+      process( schema.allOf, "All of" );
+    }
+
+    void writeSchema( std::string_view key, const std::string& name, const spt::model::Schema& schema, std::ofstream& file,
+      const spt::model::Schema& parent )
+    {
+      const auto cn = spt::output::impl::clean( std::string{ name } );
+      auto line = R"(\section{\label{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+      file.write( ":", 1 );
+      file.write( name.data(), static_cast<std::streamsize>( name.size() ) );
+      file.write( "}", 1 );
+      file.write( cn.data(), static_cast<std::streamsize>( cn.size() ) );
+      file.write( "}\n", 2 );
+
+      writeSchemaInfo( schema, file );
+
+      const auto starttable = [&file, &cn, &parent]
+      {
+        auto line = R"(\begin{center}
+\tablefirsthead{%
+  \hline
+  \multicolumn{1}{|c}{\textbf{Property}} & \multicolumn{1}{|c|}{\textbf{Value}} \\
+  \hline}
+\tablehead{%
+  \hline
+  \multicolumn{2}{|c|}{continued from previous page} \\
+  \hline}
+\tabletail{%
+  \hline
+  \multicolumn{2}{|c|}{continued on next page} \\
+  \hline
+}
+\tablelasttail{\hline}
+\tablecaption{Properties for )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        const auto pt = spt::output::impl::clean( spt::output::impl::schemaTitle( parent ) );
+        file.write( pt.data(), static_cast<std::streamsize>( pt.size() ) );
+        file.write( "::", 2 );
+        file.write( cn.data(), static_cast<std::streamsize>( cn.size() ) );
+
+        line = R"(}
+\begin{supertabular}{|l|l|}
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      };
+
+      const auto endtable = [&file]
+      {
+        auto line = R"(
+\end{supertabular}
+\end{center}
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      };
+
+      const auto required = [&parent, &name]
+      {
+        return std::ranges::find( parent.required, name ) != std::ranges::end( parent.required );
+      };
+
+      starttable();
+
+      line = R"(Type & \texttt{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( schema.type.data(), static_cast<std::streamsize>( schema.type.size() ) );
+      line = R"(} \\
+\hline Required & )"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      const auto pr = std::format( "{}", required() );
+      file.write( pr.data(), static_cast<std::streamsize>( pr.size() ) );
+      line = R"( \\
+)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+      if ( !schema._referenceURI.empty() )
+      {
+        const auto rkey = spt::output::impl::referenceKey( schema, "schema"sv );
+        line = R"(\hline Reference & See section \ref{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
+        line = R"(} on page \pageref{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        endtable();
+        return;
+      }
+
+      if ( schema.items && !schema.items->_referenceURI.empty() )
+      {
+        const auto rkey = spt::output::impl::referenceKey( *schema.items, "schema"sv );
+        line = R"(\hline Reference & See section \ref{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
+        line = R"(} on page \pageref{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( !schema.sinceVersion.empty() )
+      {
+        line = R"(\hline Since Version & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( schema.sinceVersion.data(), static_cast<std::streamsize>( schema.sinceVersion.size() ) );
+        line = R"(} \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema._default.has_value() )
+      {
+        line = R"(\hline Default & )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        const auto def = spt::output::impl::clean( std::any_cast<std::string>( schema._default ) );
+        file.write( def.data(), static_cast<std::streamsize>( def.size() ) );
+        line = R"(. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( !schema.pattern.empty() )
+      {
+        line = R"(\hline Pattern & \verb|)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( schema.pattern.data(), static_cast<std::streamsize>( schema.pattern.size() ) );
+        line = R"(| \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( !schema.format.empty() )
+      {
+        const auto cleaned = spt::output::impl::clean( schema.format );
+        line = R"(\hline Format & )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( cleaned.data(), static_cast<std::streamsize>( cleaned.size() ) );
+        line = R"(. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.example.has_value() )
+      {
+        const auto ex = spt::output::impl::clean( std::any_cast<std::string>( schema.example ) );
+        line = R"(\hline Example & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( ex.data(), static_cast<std::streamsize>( ex.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+      else if ( schema.examples.size() == 1 )
+      {
+        const auto& example = schema.examples.front();
+        if ( example.has_value() )
+        {
+          const auto ex = spt::output::impl::clean( std::any_cast<std::string>( example ) );
+          line = R"(\hline Example & \texttt{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( ex.data(), static_cast<std::streamsize>( ex.size() ) );
+          line = R"(}. \\
+)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        }
+      }
+
+      if ( schema.maximum.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.maximum );
+        line = R"(\hline Maximum & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.exclusiveMaximum.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.exclusiveMaximum );
+        line = R"(\hline Exclusive Maximum & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.minimum.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.minimum );
+        line = R"(\hline Minimum & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.exclusiveMinimum.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.exclusiveMinimum );
+        line = R"(\hline Exclusive Minimum & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.maxLength.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.maxLength );
+        line = R"(\hline Max Length & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.minLength.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.minLength );
+        line = R"(\hline Min Length & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.maxItems.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.maxItems );
+        line = R"(\hline Max Items & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.minItems.has_value() )
+      {
+        const auto v = std::format( "{}", *schema.minItems );
+        line = R"(\hline Min Items & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( !schema.enumeration.empty() )
+      {
+        auto v = std::format( "{:n}", schema.enumeration );
+        boost::algorithm::replace_all( v, "\"", "" );
+        line = R"(\hline Enum & Allowed values - \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.nullable )
+      {
+        const auto v = std::format( "{}", schema.nullable );
+        line = R"(\hline Nullable & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.readOnly )
+      {
+        const auto v = std::format( "{}", schema.readOnly );
+        line = R"(\hline Read Only & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.writeOnly )
+      {
+        const auto v = std::format( "{}", schema.writeOnly );
+        line = R"(\hline Write Only & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      if ( schema.deprecated )
+      {
+        const auto v = std::format( "{}", schema.deprecated );
+        line = R"(\hline Deprecated & \texttt{)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+        line = R"(}. \\
+)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+
+      writeSchemaAggregationsTable( schema, file );
+      endtable();
+
+      if ( schema.examples.size() > 1 && !schema.example.has_value() ) writeSchemaExample( schema, file );
+
+      for ( const auto& [pname, prop] : schema.properties )
+      {
+        if ( !prop._referenceURI.empty() ) continue;
+        writeSchema( spt::output::impl::referenceKey( prop, "schema"sv ), pname, prop, file, schema );
+      }
+
+      if ( schema.items && !schema.items->_referenceURI.empty() )
+      {
+        writeSchema( spt::output::impl::referenceKey( *schema.items, "schema"sv ), schema.items->title, *schema.items, file, schema );
+      }
+    }
+  }
+}
+
+std::string spt::output::impl::schemaTitle( const model::Schema& schema )
 {
   if ( !schema.title.empty() ) return schema.title;
   if ( schema.ref.empty() ) return "Schema"s;
@@ -41,7 +478,7 @@ void spt::output::impl::schemaExamples( const model::Schema& schema, std::ofstre
   }
 }
 
-void spt::output::impl::writeSchemaForAggregation( const spt::model::Schema& schema, std::string_view title, std::ofstream& file )
+void spt::output::impl::writeSchemaForAggregation( const model::Schema& schema, std::string_view title, std::ofstream& file )
 {
   auto line = R"(\item )"sv;
   file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -209,7 +646,7 @@ void spt::output::impl::writeSchemaForAggregation( const spt::model::Schema& sch
 
       auto v = std::format( "{:n}", vec );
       boost::algorithm::replace_all( v, "\"", "" );
-      v = spt::output::impl::clean( v );
+      v = clean( v );
       line = R"(\item \textbf{Examples} - \texttt{)"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
       file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
@@ -247,4 +684,165 @@ line = R"(
 )"sv;
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
   }
+}
+
+void spt::output::impl::writeSchemaProperties( const spt::model::Schema& schema, std::ofstream& file )
+{
+  if ( schema.properties.empty() ) return;
+  auto line = R"(\begin{itemize}
+)"sv;
+  file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+  for ( const auto& [name, prop] : schema.properties )
+  {
+    const auto title = schemaTitle( prop );
+
+    line = R"(\item \textbf{)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+    const auto cleaned = clean( name );
+    file.write( cleaned.data(), static_cast<std::streamsize>( cleaned.size() ) );
+    line = R"(}
+\index{)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+    file.write( cleaned.data(), static_cast<std::streamsize>( cleaned.size() ) );
+    file.write( "}\n", 2 );
+
+    if ( !prop._referenceURI.empty() )
+    {
+      line = R"(\textbf{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
+
+      const auto key = referenceKey( prop, "schema" );
+      line = R"(}. See chapter \ref{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+      line = R"(} on page \pageref{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+      line = R"(} for schema.
+)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+      continue;
+    }
+
+    if ( !prop.description.empty() )
+    {
+      const auto desc = convert( schema.description );
+      file.write( desc.data(), static_cast<std::streamsize>( desc.size() ) );
+      file.write( "\n", 1 );
+    }
+
+    line = R"(\begin{itemize}
+)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+    line = R"(\item \textbf{Type} )"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+    file.write( prop.type.data(), static_cast<std::streamsize>( prop.type.size() ) );
+    file.write( "\n", 1 );
+
+    if ( !prop.format.empty() )
+    {
+      line = R"(\item \textbf{Format} )"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( prop.format.data(), static_cast<std::streamsize>( prop.format.size() ) );
+      file.write( "\n", 1 );
+    }
+
+    schemaExamples( prop, file );
+
+    line = R"(\end{itemize}
+)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+  }
+
+  line = R"(\end{itemize}
+)"sv;
+  file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+}
+
+void spt::output::impl::writeSchemaAggregations( const model::Schema& schema, std::ofstream& file, bool eol )
+{
+  const auto process = [&file]( const std::vector<spt::model::Schema>& vector, std::string_view text )
+  {
+    if ( vector.empty() ) return;
+
+    auto line = R"(\textbf{)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+    file.write( text.data(), static_cast<std::streamsize>( text.size() ) );
+
+    line = R"(}
+\begin{itemize}
+)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+    for ( const auto& child : vector )
+    {
+      const auto title = schemaTitle( child );
+
+      if ( child._referenceURI.empty() )
+      {
+        writeSchemaForAggregation( child, title, file );
+        continue;
+      }
+
+      const auto key = referenceKey( child, "schema" );
+      line = R"(\item \textbf{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
+      line = R"(}. See chapter \ref{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+      line = R"(} on page \pageref{)"sv;
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+      file.write( "}.\n", 3 );
+    }
+
+    line = R"(\end{itemize}
+)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+  };
+
+  process( schema.oneOf, "One of" );
+  process( schema.anyOf, "Any of" );
+  process( schema.allOf, "All of" );
+
+  if ( eol )
+  {
+    auto line = R"(\\
+)"sv;
+    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+  }
+}
+
+std::filesystem::path spt::output::impl::writeSchema( std::string_view key, const spt::model::Schema& schema, std::filesystem::path path )
+{
+  const auto pos = schema._referenceURI.find( '#' );
+  auto fn = pos == std::string::npos ? schema._referenceURI : schema._referenceURI.substr( 0, pos );
+  auto fp = std::filesystem::path{ fn };
+  const auto title = spt::output::impl::schemaTitle( schema );
+
+  path.append( std::format( "schema-{}-{}.tex", fp.stem().string(), title) );
+  LOG_DEBUG << "Writing schema with reference " << key << " to file " << path.string();
+  auto file = std::ofstream{ path };
+
+  auto line = R"(
+\chapter{\label{)"sv;
+  file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+  file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+  file.write( "}", 1 );
+  file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
+  file.write( "}\n", 2 );
+
+  pschema::writeSchemaInfo( schema, file );
+
+  for ( const auto& [name, sc] : schema.properties ) pschema::writeSchema( key, name, sc, file, schema );
+
+  writeSchemaAggregations( schema, file, false );
+
+  file.close();
+  return path;
 }

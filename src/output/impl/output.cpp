@@ -9,6 +9,17 @@
 
 using std::operator ""sv;
 
+void spt::output::impl::writeInput( const std::filesystem::path& path, std::ofstream& file )
+{
+  auto line = R"(\input{)"sv;
+  file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+  auto input = path.string();
+  file.write( input.data(), static_cast<std::streamsize>( input.size() ) );
+  line = R"(}
+)"sv;
+  file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+}
+
 std::string spt::output::impl::clean( std::string text )
 {
   boost::replace_all( text, "&", R"(\&)" );
