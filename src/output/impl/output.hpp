@@ -68,7 +68,7 @@ namespace spt::output::impl
   template <typename T>
   void writeSummary( const T& model, std::ofstream& file )
   {
-    using std::operator ""sv;
+    using namespace std::string_view_literals;
 
     if ( model.summary.empty() ) return;
 
@@ -84,7 +84,7 @@ namespace spt::output::impl
   template <typename T>
   void writeDescription( const T& model, std::ofstream& file )
   {
-    using std::operator ""sv;
+    using namespace std::string_view_literals;
 
     if ( model.description.empty() ) return;
 
@@ -96,7 +96,7 @@ namespace spt::output::impl
   template <typename T>
   void writeSchema( const T& param, std::ofstream& file )
   {
-    using std::operator ""sv;
+    using namespace std::string_view_literals;
 
     auto line = R"(\item \textit{schema})"sv;
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
