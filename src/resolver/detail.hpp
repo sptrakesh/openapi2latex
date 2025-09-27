@@ -10,6 +10,13 @@
 #include "parser/parser.hpp"
 #include "util/split.hpp"
 
+#if defined(__unix__) && !defined(__APPLE__)
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#else
+#include <format>
+#endif
+
 namespace spt::resolver::detail
 {
   template <HasRef T>
@@ -52,7 +59,11 @@ namespace spt::resolver::detail
 
     std::string refPath = it == std::string::npos ? "" : entity.ref.substr( it + 1 );
     auto parts = util::split( refPath, 4, "/" );
+#if defined(__unix__) && !defined(__APPLE__)
+    LOG_DEBUG << "Reference path: " << refPath << " parts: " << fmt::format( "{:n}", parts );
+#else
     LOG_DEBUG << "Reference path: " << refPath << " parts: " << std::format( "{:n}", parts );
+#endif
 
     const auto expected = FileCache::instance().yaml( fn );
     if ( !expected.has_value() )

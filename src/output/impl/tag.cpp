@@ -10,6 +10,13 @@
 #include <set>
 #include <boost/lexical_cast.hpp>
 
+#if defined(__unix__) && !defined(__APPLE__)
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#else
+#include <format>
+#endif
+
 using std::operator ""s;
 using std::operator ""sv;
 
@@ -286,7 +293,11 @@ namespace
         {
           line = R"(Security & )"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+#if defined(__unix__) && !defined(__APPLE__)
+          auto value = fmt::format( "{:n}", names );
+#else
           auto value = std::format( "{:n}", names );
+#endif
           boost::replace_all( value, "\"", "" );
           value = spt::output::impl::clean( value );
           file.write( value.data(), static_cast<std::streamsize>( value.size() ) );

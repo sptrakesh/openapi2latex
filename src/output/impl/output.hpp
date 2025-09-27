@@ -13,6 +13,13 @@
 #include <fstream>
 #include <boost/algorithm/string/replace.hpp>
 
+#if defined(__unix__) && !defined(__APPLE__)
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#else
+#include <format>
+#endif
+
 namespace spt::output::impl
 {
   void writeInput( const std::filesystem::path& path, std::ofstream& file );
@@ -49,17 +56,12 @@ namespace spt::output::impl
   template <typename T>
   std::string referenceKey( const T& model, std::string_view prefix )
   {
-    if constexpr ( HasName<T> )
-    {
-      if ( model._referenceURI.empty() ) return std::format( "{}::{}", prefix, model.name );
-      return std::format( "{}::{}", prefix, std::hash<std::string>{}( model._referenceURI ) );
-    }
-    if constexpr ( HasTitle<T> )
-    {
-      if ( model._referenceURI.empty() ) return std::format( "{}::{}", prefix, model.title );
-      return std::format( "{}::{}", prefix, std::hash<std::string>{}( model._referenceURI ) );
-    }
+    std::string prop = model._referenceURI;
 
+    if constexpr ( HasName<T> ) if ( prop.empty() ) prop = model.name;
+    if constexpr ( HasTitle<T> ) if ( prop.empty() ) prop = model.title;
+
+    if ( model._referenceURI.empty() ) return std::format( "{}::{}", prefix, prop );
     return std::format( "{}::{}", prefix, std::hash<std::string>{}( model._referenceURI ) );
   }
 
@@ -118,7 +120,11 @@ namespace spt::output::impl
 
     if ( !param.schema->enumeration.empty() )
     {
+#if defined(__unix__) && !defined(__APPLE__)
+      auto names = fmt::format( "{:n}", param.schema->enumeration );
+#else
       auto names = std::format( "{:n}", param.schema->enumeration );
+#endif
       boost::algorithm::replace_all( names, "\"", "" );
       line = R"(\item \textit{enum} - Allowed values )"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );

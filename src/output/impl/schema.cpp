@@ -6,6 +6,13 @@
 #include "log/NanoLog.hpp"
 #include "util/split.hpp"
 
+#if defined(__unix__) && !defined(__APPLE__)
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#else
+#include <format>
+#endif
+
 using std::operator ""s;
 using std::operator ""sv;
 
@@ -89,7 +96,7 @@ namespace
             continue;
           }
 
-          const auto key = spt::output::impl::referenceKey( child, "schema" );
+          const auto key = spt::output::impl::referenceKey( child, "schema"sv );
           line = R"(\item \textbf{)"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
           file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
@@ -112,16 +119,17 @@ namespace
       process( schema.allOf, "All of" );
     }
 
-    void writeSchema( std::string_view key, const std::string& name, const spt::model::Schema& schema, std::ofstream& file,
-      const spt::model::Schema& parent )
+    void writeSchema( const std::string& name, const spt::model::Schema& schema, std::ofstream& file,
+      const spt::model::Schema& parent, std::size_t level )
     {
+      static const auto levels = std::array{ "section"sv, "subsection"sv, "subsubsection"sv, "paragraph"sv, "subparagraph"sv };
+
       const auto cn = spt::output::impl::clean( std::string{ name } );
-      auto line = R"(\section{\label{)"sv;
-      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-      file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
-      file.write( ":", 1 );
-      file.write( name.data(), static_cast<std::streamsize>( name.size() ) );
-      file.write( "}", 1 );
+      LOG_DEBUG << "Writing child " << schema.title << " for parent " << parent.title;
+      file.write( R"(\)", 1 );
+      auto l = level < levels.size() ? levels[ level ] : "subparagraph"sv;
+      file.write( l.data(), static_cast<std::streamsize>( l.size() ) );
+      file.write( "{", 1 );
       file.write( cn.data(), static_cast<std::streamsize>( cn.size() ) );
       file.write( "}\n", 2 );
 
@@ -173,7 +181,7 @@ namespace
 
       starttable();
 
-      line = R"(Type & \texttt{)"sv;
+      auto line = R"(Type & \texttt{)"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
       file.write( schema.type.data(), static_cast<std::streamsize>( schema.type.size() ) );
       line = R"(} \\
@@ -188,7 +196,7 @@ namespace
       if ( !schema._referenceURI.empty() )
       {
         const auto rkey = spt::output::impl::referenceKey( schema, "schema"sv );
-        line = R"(\hline Reference & See section \ref{)"sv;
+        line = R"(\hline Reference & See chapter \ref{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
         line = R"(} on page \pageref{)"sv;
@@ -201,18 +209,36 @@ namespace
         return;
       }
 
-      if ( schema.items && !schema.items->_referenceURI.empty() )
+      if ( schema.items )
       {
-        const auto rkey = spt::output::impl::referenceKey( *schema.items, "schema"sv );
-        line = R"(\hline Reference & See section \ref{)"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
-        line = R"(} on page \pageref{)"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
-        line = R"(}. \\
-)"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        if ( !schema.items->_referenceURI.empty() )
+        {
+          const auto rkey = spt::output::impl::referenceKey( *schema.items, "schema"sv );
+          line = R"(\hline Reference & See section \ref{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
+          line = R"(} on page \pageref{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( rkey.data(), static_cast<std::streamsize>( rkey.size() ) );
+          line = R"(}. \\
+  )"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        }
+        else
+        {
+          const auto title = schema.items->title.empty() ? "Schema" : schema.items->title;
+          line = R"(\hline \textbf{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
+          file.write( "}\n", 2 );
+
+          spt::output::impl::writeSummary( *schema.items, file );
+          spt::output::impl::writeDescription( *schema.items, file );
+          spt::output::impl::writeSchemaProperties( *schema.items, file );
+          line = R"( \\
+  )"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        }
       }
 
       if ( !schema.sinceVersion.empty() )
@@ -372,7 +398,11 @@ namespace
 
       if ( !schema.enumeration.empty() )
       {
+#if defined(__unix__) && !defined(__APPLE__)
+        auto v = fmt::format( "{:n}", schema.enumeration );
+#else
         auto v = std::format( "{:n}", schema.enumeration );
+#endif
         boost::algorithm::replace_all( v, "\"", "" );
         line = R"(\hline Enum & Allowed values - \texttt{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -434,12 +464,7 @@ namespace
       for ( const auto& [pname, prop] : schema.properties )
       {
         if ( !prop._referenceURI.empty() ) continue;
-        writeSchema( spt::output::impl::referenceKey( prop, "schema"sv ), pname, prop, file, schema );
-      }
-
-      if ( schema.items && !schema.items->_referenceURI.empty() )
-      {
-        writeSchema( spt::output::impl::referenceKey( *schema.items, "schema"sv ), schema.items->title, *schema.items, file, schema );
+        writeSchema( pname, prop, file, schema, ++level );
       }
     }
   }
@@ -491,7 +516,7 @@ void spt::output::impl::writeSchemaForAggregation( const model::Schema& schema, 
   const auto cleanedProperty = [&file]( std::string_view title, const std::string& value )
   {
     if ( value.empty() ) return;
-    const auto cleaned = spt::output::impl::clean( value );
+    const auto cleaned = clean( value );
     auto line = R"(\item \textbf{)"sv;
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
     file.write( title.data(), static_cast<std::streamsize>( title.size() ) );
@@ -538,7 +563,7 @@ void spt::output::impl::writeSchemaForAggregation( const model::Schema& schema, 
   writeSummary( schema, file );
   writeDescription( schema, file );
 
-  const std::function<void( const spt::model::Schema& prop, const std::string& name )> property = [&file, &cleanedProperty, &boolean, &optdouble, &property]( const spt::model::Schema& prop, const std::string& name )
+  const std::function<void( const model::Schema& prop, const std::string& name )> property = [&file, &cleanedProperty, &boolean, &optdouble, &property]( const spt::model::Schema& prop, const std::string& name )
   {
     auto line = R"(\item \textbf{)"sv;
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -553,7 +578,7 @@ void spt::output::impl::writeSchemaForAggregation( const model::Schema& schema, 
 
     if ( !prop._referenceURI.empty() )
     {
-      const auto key = spt::output::impl::referenceKey( prop, "schema"sv );
+      const auto key = referenceKey( prop, "schema"sv );
       line = R"(See chapter \ref{)"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
       file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
@@ -644,7 +669,11 @@ void spt::output::impl::writeSchemaForAggregation( const model::Schema& schema, 
         vec.emplace_back( std::any_cast<std::string>( ex ) );
       }
 
+#if defined(__unix__) && !defined(__APPLE__)
+      auto v = fmt::format( "{:n}", vec );
+#else
       auto v = std::format( "{:n}", vec );
+#endif
       boost::algorithm::replace_all( v, "\"", "" );
       v = clean( v );
       line = R"(\item \textbf{Examples} - \texttt{)"sv;
@@ -686,7 +715,7 @@ line = R"(
   }
 }
 
-void spt::output::impl::writeSchemaProperties( const spt::model::Schema& schema, std::ofstream& file )
+void spt::output::impl::writeSchemaProperties( const model::Schema& schema, std::ofstream& file )
 {
   if ( schema.properties.empty() ) return;
   auto line = R"(\begin{itemize}
@@ -818,12 +847,12 @@ void spt::output::impl::writeSchemaAggregations( const model::Schema& schema, st
   }
 }
 
-std::filesystem::path spt::output::impl::writeSchema( std::string_view key, const spt::model::Schema& schema, std::filesystem::path path )
+std::filesystem::path spt::output::impl::writeSchema( std::string_view key, const model::Schema& schema, std::filesystem::path path )
 {
   const auto pos = schema._referenceURI.find( '#' );
   auto fn = pos == std::string::npos ? schema._referenceURI : schema._referenceURI.substr( 0, pos );
   auto fp = std::filesystem::path{ fn };
-  const auto title = spt::output::impl::schemaTitle( schema );
+  const auto title = schemaTitle( schema );
 
   path.append( std::format( "schema-{}-{}.tex", fp.stem().string(), title) );
   LOG_DEBUG << "Writing schema with reference " << key << " to file " << path.string();
@@ -839,7 +868,7 @@ std::filesystem::path spt::output::impl::writeSchema( std::string_view key, cons
 
   pschema::writeSchemaInfo( schema, file );
 
-  for ( const auto& [name, sc] : schema.properties ) pschema::writeSchema( key, name, sc, file, schema );
+  for ( const auto& [name, sc] : schema.properties ) pschema::writeSchema( name, sc, file, schema, 0 );
 
   writeSchemaAggregations( schema, file, false );
 

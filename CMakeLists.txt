@@ -1,19 +1,14 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
-# For INTERPROCEDURAL_OPTIMIZATION
-if (POLICY CMP0069)
-  cmake_policy(SET CMP0069 NEW)
-endif()
-
-if (POLICY CMP0079)
-  cmake_policy(SET CMP0079 NEW)
-endif (POLICY CMP0079)
-
 if (POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
 project(openapi-latex LANGUAGES CXX)
+
+# Enable C++23 features
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (WIN32)
   if (POLICY CMP0111)
@@ -24,14 +19,10 @@ if (WIN32)
   endif (POLICY CMP0091)
 
   if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    set(CMAKE_CXX_FLAGS "/EHsc /await:strict /std:c++20 /utf-8")
+    set(CMAKE_CXX_FLAGS "/EHsc /await:strict /utf-8")
     add_compile_definitions(_WIN32_WINNT=0x0A000007)
   endif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif (WIN32)
-
-# Enable C++23 features
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
@@ -74,15 +65,7 @@ if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
 if (UNIX AND NOT APPLE)
-  if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=mold")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fuse-ld=mold")
-    message(STATUS "Enabling mold linker")
-  elseif (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "aarch64" )
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=mold")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fuse-ld=mold")
-    message(STATUS "Enabling mold linker")
-  endif (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+  find_package(fmt REQUIRED)
 endif (UNIX AND NOT APPLE)
 
 include_directories(

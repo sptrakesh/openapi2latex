@@ -114,7 +114,11 @@ int main( int argc, char const * const * argv )
   using clara::Opt;
   spt::model::Configuration config;
   std::string logLevel{"info"};
+#if defined(__unix__) && !defined(__APPLE__)
+  std::string dir{"/opt/spt/logs/"};
+#else
   std::string dir{"/tmp/"};
+#endif
   bool help = false;
   bool console = false;
 
@@ -139,6 +143,12 @@ int main( int argc, char const * const * argv )
   {
     options.writeToStream( std::cout );
     exit( 0 );
+  }
+
+  if ( config.input.empty() || config.output.empty() )
+  {
+    options.writeToStream( std::cout );
+    exit( 1 );
   }
 
   if ( logLevel == "debug" ) nanolog::set_log_level( nanolog::LogLevel::DEBUG );

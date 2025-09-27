@@ -43,11 +43,11 @@ The generated LaTeX files have the following structure (you can of course modify
 * **Backmatter** - List of tables, and optionally index.
   *  **Index** - Operation ids and schema property names are added to index.
 
-See [openapi.pdf](openapi.pdf) for the PDF generated from the official 
+See [openapi.pdf](openapi.pdf) for the PDF generated from the sample 
 [petstore](https://github.com/SLdragon/example-openapi-spec/blob/main/petstore-official.yaml)
-specifications.  Note that the petstore sample has a markdown table in the information, which
+specifications.  Note that the petstore sample has a CommonMark table in the information, which
 the embedded converter does not support.  This sample was generated using the `cmark` option.
-The cmark generated latex table has some issue, and I had to run latex in `nonstopmode`
+The `cmark` generated latex table has some issue, and I had to run latex in `nonstopmode`
 for the PDF to be generated.
 
 ## Usage
@@ -68,12 +68,18 @@ The following options are supported by the [main.cpp](src/main.cpp) program:
 * `--operation-summary | -s` - A flag to indicate that **Operation** *summary* should be used as section headings instead of *operationId*.
 * `--use-cmark | -m` - Use [cmark](https://github.com/commonmark/cmark) to convert `info.description` to latex.
   Recommended option, since the description can be quite long and complicated, and `cmark` should have much more 
-  comprehensive support for converting markdown to latex.  Note the program uses the `cmark` utility via
-  `std::sytem`, and not the library.
+  comprehensive support for converting CommonMark to latex.  Note the program uses the `cmark` utility via
+  `std::system`, and not the library.
 * `--log-level | -l` - Set the logging level (`critical|warn|info|debug`).  Default `info`.
 * `--console | -c` - Flag to indicate logs should also be echoed to `stdout`.
 * `--log-dir | -d` - The directory under which the process log output is written.  The directory *must* exist.
   Default `/tmp/` - note the mandatory trailing `/`.
+
+#### Example
+The following options were used to generate the sample petstore specifications document.
+```shell
+/usr/local/spt/bin/oa2tex -i /tmp/petstore-official.yaml -o /tmp/petstore -s -c --use-cmark
+```
 
 ## Extensions
 A few extensions to the specifications developed by [Redocly](https://redocly.com/) are supported. 
@@ -113,7 +119,7 @@ Probably too many to list, but the following items should be kept in mind.
 * Only supports loading local specification files in YAML format.  JSON is not supported at present.
 * Not all properties/aspects of the specification are output in the generated LaTeX file.  I selected what I felt are
   most relevant to be shared.
-* Markdown markup may not be fully translated to LaTeX.  See [markdown.cpp](test/markdown.cpp) for basic tests around the implemented.
+* Markdown markup may not be fully translated to LaTeX.  See [convert.cpp](test/convert.cpp) for basic tests around the implemented.
   * Bold/italic blocks of text (spanning paragraphs) are not supported.
 
 The output is a wrapping LaTeX file that includes several smaller included files, and hence can be easily modified 
