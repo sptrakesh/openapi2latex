@@ -9,6 +9,64 @@
 
 using std::operator ""sv;
 
+namespace
+{
+  namespace ph
+  {
+    void writeExamples( const spt::model::Header& header, std::ofstream& file )
+    {
+      if ( header.example.has_value() )
+      {
+        const auto ex = std::any_cast<std::string>( header.example );
+        auto line = R"(\hline Example & \verb|)"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+        file.write( ex.data(), static_cast<std::streamsize>( ex.size() ) );
+        line = R"(| \\
+    )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+      }
+      else if ( !header.examples.empty() )
+      {
+        auto line = R"(\hline Examples &
+    \begin{itemize}
+    )"sv;
+        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+
+        for ( const auto& [n, ex] : header.examples )
+        {
+          if ( !ex.value.has_value() && ex.externalValue.empty() ) continue;
+          line = R"(\item \textit{)"sv;
+          file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          file.write( n.data(), static_cast<std::streamsize>( n.size() ) );
+          file.write( "}\n", 2 );
+
+          spt::output::impl::writeSummary( ex, file );
+          spt::output::impl::writeDescription( ex, file );
+
+          if ( !ex.externalValue.empty() )
+          {
+            const auto url = boost::lexical_cast<std::string>( ex.externalValue );
+            line = R"(See example at \url{)"sv;
+            file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+            file.write( url.data(), static_cast<std::streamsize>( url.size() ) );
+            file.write( "}\n", 2 );
+          }
+
+          if ( ex.value.has_value() )
+          {
+            line = R"(\verb|)"sv;
+            file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+            const auto v = std::any_cast<std::string>( ex.value );
+            file.write( "\n", 1 );
+            file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+            file.write( "|\n", 2 );
+          }
+        }
+      }
+    }
+  }
+}
+
 void spt::output::impl::writeHeader( std::string_view name, const model::Header& header, std::ofstream& file )
 {
   static auto counter = 0;
@@ -79,68 +137,7 @@ void spt::output::impl::writeHeader( std::string_view name, const model::Header&
   boolean( "deprecated"sv, header.deprecated );
   boolean( "allowEmptyValue"sv, header.allowEmptyValue );
   boolean( "explode"sv, header.explode );
-
-  if ( header.example.has_value() )
-  {
-    const auto ex = std::any_cast<std::string>( header.example );
-    line = R"(\hline Example & \verb|)"sv;
-    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-    file.write( ex.data(), static_cast<std::streamsize>( ex.size() ) );
-    line = R"(| \\
-)"sv;
-    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-  }
-  else if ( !header.examples.empty() )
-  {
-    line = R"(\hline Examples &
-\begin{itemize}
-)"sv;
-    file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-
-    for ( const auto& [n, ex] : header.examples )
-    {
-      line = R"(\item \textit{)"sv;
-      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-      file.write( n.data(), static_cast<std::streamsize>( n.size() ) );
-      file.write( "}\n", 2 );
-
-      if ( !ex.summary.empty() )
-      {
-        const auto sum = convert( ex.summary );
-        line = R"(\begin{quote})"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( sum.data(), static_cast<std::streamsize>( sum.size() ) );
-        line = R"(\end{quote}
-
-)"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-      }
-
-      if ( !ex.description.empty() )
-      {
-        const auto sum = convert( ex.description );
-        file.write( sum.data(), static_cast<std::streamsize>( sum.size() ) );
-        file.write( "\n\n", 2 );
-      }
-
-      if ( !ex.externalValue.empty() )
-      {
-        const auto url = boost::lexical_cast<std::string>( ex.externalValue );
-        line = R"(\url{)"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( url.data(), static_cast<std::streamsize>( url.size() ) );
-        file.write( "}\n", 2 );
-      }
-
-      if ( ex.value.has_value() )
-      {
-        const auto v = std::any_cast<std::string>( ex.value );
-        file.write( "\n", 1 );
-        file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
-        file.write( "\n", 1 );
-      }
-    }
-  }
+  ph::writeExamples( header, file );
 
   endtable();
 

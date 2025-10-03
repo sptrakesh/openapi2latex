@@ -41,7 +41,7 @@ void spt::output::impl::writeExample( const model::Example& example, std::ofstre
   if ( !example.externalValue.empty() )
   {
     const auto url = boost::lexical_cast<std::string>( example.externalValue );
-    auto line = R"(\url{)"sv;
+    auto line = R"(See example at \url{)"sv;
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
     file.write( url.data(), static_cast<std::streamsize>( url.size() ) );
     file.write( "}\n", 2 );

@@ -15,6 +15,7 @@
 #include <fstream>
 #include <ranges>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/replace.hpp>
 
 using std::operator ""s;
@@ -27,11 +28,22 @@ namespace
 {
   namespace poutput
   {
-    std::filesystem::path preamble( std::filesystem::path path )
+    std::filesystem::path preamble( std::filesystem::path path, const spt::model::Configuration& conf )
     {
       path.append( "preamble.tex" );
       auto file = std::ofstream{ path };
-      file.write( preambleContents.data(), preambleContents.size() );
+
+      if ( conf.font == "Helvetica Neue" )
+      {
+        file.write( preambleContents.data(), preambleContents.size() );
+      }
+      else
+      {
+        auto data = std::string{ preambleContents };
+        boost::algorithm::replace_all( data, "Helvetica Neue", conf.font );
+        file.write( data.data(), static_cast<std::streamsize>( data.size() ) );
+      }
+
       file.close();
       return path;
     }
@@ -205,11 +217,13 @@ Version: #VERSION#}
 
         line = R"(}{*}{\textbf{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
+        const auto ckey = spt::output::impl::clean( key );
+        file.write( ckey.data(), static_cast<std::streamsize>( ckey.size() ) );
 
         line = R"(}} & Type & )"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( scheme.type.data(), static_cast<std::streamsize>( scheme.type.size() ) );
+        const auto stype = spt::output::impl::clean( scheme.type );
+        file.write( stype.data(), static_cast<std::streamsize>( stype.size() ) );
         line = R"( \\
 )"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -229,7 +243,7 @@ Version: #VERSION#}
         {
           line = R"(\cline{2-3} & Name & )"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-          auto desc = spt::output::convert( scheme.name );
+          auto desc = spt::output::impl::clean( scheme.name );
           file.write( desc.data(), static_cast<std::streamsize>( desc.size() ) );
           line = R"( \\
 )"sv;
@@ -240,7 +254,7 @@ Version: #VERSION#}
         {
           line = R"(\cline{2-3} & In & )"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-          auto desc = spt::output::convert( scheme.in );
+          auto desc = spt::output::impl::clean( scheme.in );
           file.write( desc.data(), static_cast<std::streamsize>( desc.size() ) );
           line = R"( \\
 )"sv;
@@ -251,7 +265,7 @@ Version: #VERSION#}
         {
           line = R"(\cline{2-3} & Scheme & )"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-          auto desc = spt::output::convert( scheme.scheme );
+          auto desc = spt::output::impl::clean( scheme.scheme );
           file.write( desc.data(), static_cast<std::streamsize>( desc.size() ) );
           line = R"( \\
 )"sv;
@@ -262,7 +276,7 @@ Version: #VERSION#}
         {
           line = R"(\cline{2-3} & Bearer Format & )"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-          auto desc = spt::output::convert( scheme.bearerFormat );
+          auto desc = spt::output::impl::clean( scheme.bearerFormat );
           file.write( desc.data(), static_cast<std::streamsize>( desc.size() ) );
           line = R"( \\
 )"sv;
@@ -288,9 +302,13 @@ Version: #VERSION#}
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
     }
 
-    void examples( const spt::model::Components& components, std::ofstream& file )
+    std::expected<std::filesystem::path, std::string> examples( const spt::model::Components& components, std::filesystem::path path )
     {
-      if ( components.examples.empty() ) return;
+      using O = std::expected<std::filesystem::path, std::string>;
+      if ( components.examples.empty() ) return O{ std::unexpect, "No examples" };
+
+      path.append( "component-examples.tex" );
+      auto file = std::ofstream{ path };
 
       auto line = R"(\chapter{Examples}
 )"sv;
@@ -328,6 +346,8 @@ Version: #VERSION#}
 )"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
       }
+
+      return O{ std::in_place, path };
     }
 
     std::filesystem::path infoDescription( const std::filesystem::path& path, const spt::model::Info& info )
@@ -509,6 +529,7 @@ Version: #VERSION#}
 
     std::filesystem::path codeSamples( std::string_view tag, const std::vector<SampleWrapper>& vector, std::filesystem::path path )
     {
+      static const auto languages = std::array{ "C++"s, "Go"s, "Java"s, "Python"s };
       path.append( std::format( "codesamples-{}.tex", tag ) );
       auto file = std::ofstream{ path };
 
@@ -535,9 +556,16 @@ Version: #VERSION#}
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
           file.write( key.data(), static_cast<std::streamsize>( key.size() ) );
           file.write( "}\n", 2 );
-          line = R"(\begin{lstlisting}
-)"sv;
+          line = R"(\begin{lstlisting})"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+          if ( const auto iter = std::ranges::find( languages, cs.get().lang ); iter != std::ranges::end( languages ) )
+          {
+            line = R"([language=)"sv;
+            file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+            file.write( cs.get().lang.data(), static_cast<std::streamsize>( cs.get().lang.size() ) );
+            file.write( "]\n", 2 );
+          }
+          else file.write( "\n", 1 );
           file.write( cs.get().source.data(), static_cast<std::streamsize>( cs.get().source.size() ) );
           line = R"(
 \end{lstlisting}
@@ -741,7 +769,7 @@ std::string spt::output::generate( model::OpenAPI& openapi, const model::Configu
 
   auto file = std::ofstream{ outfile };
 
-  auto genpath = poutput::preamble( p );
+  auto genpath = poutput::preamble( p, config );
   impl::writeInput( genpath, file );
 
   genpath = poutput::frontmatter( p, openapi, config );
@@ -752,7 +780,11 @@ std::string spt::output::generate( model::OpenAPI& openapi, const model::Configu
 
   poutput::servers( openapi, file );
   if ( openapi.components ) poutput::securitySchemes( *openapi.components, file );
-  if ( openapi.components ) poutput::examples( *openapi.components, file );
+  if ( openapi.components )
+  {
+    auto ex = poutput::examples( *openapi.components, p );
+    if ( ex.has_value() ) impl::writeInput( ex.value(), file );
+  }
 
   if ( auto cps = poutput::collectParameters( p, openapi ); cps.has_value() ) impl::writeInput( *cps, file );
 

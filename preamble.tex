@@ -65,10 +65,13 @@ R"tex(%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \usepackage{tocloft}
 \usepackage{multirow}
-\addtocontents{toc}{\setlength{\cftchapnumwidth}{2em}}
+\addtocontents{toc}{\setlength{\cftchapnumwidth}{3em}}
 \addtocontents{toc}{\setlength{\cftsecnumwidth}{4em}}
-\addtocontents{toc}{\setlength{\cftsubsecnumwidth}{4em}}
+\addtocontents{toc}{\setlength{\cftsubsecnumwidth}{5em}}
+\addtocontents{lot}{\setlength{\cfttabnumwidth}{4em}}
 
+\usepackage{fontspec}
+\setmainfont[Ligatures=TeX,Numbers=OldStyle]{Helvetica Neue}
 \usepackage{microtype} % Improves character and word spacing
 
 \usepackage{booktabs} % Better horizontal rules in tables

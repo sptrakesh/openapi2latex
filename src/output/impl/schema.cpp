@@ -22,16 +22,7 @@ namespace
   {
     void writeSchemaInfo( const spt::model::Schema& schema, std::ofstream& file )
     {
-      if ( !schema.summary.empty() )
-      {
-        const auto sum = spt::output::convert( schema.summary );
-        auto line = R"(\begin{quote})"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( sum.data(), static_cast<std::streamsize>( sum.size() ) );
-        line = R"(\end{quote})"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( "\n", 1 );
-      }
+      spt::output::impl::writeSummary( schema, file );
 
       if ( !schema.sinceVersion.empty() )
       {
@@ -43,12 +34,7 @@ namespace
         file.write( "\n", 1 );
       }
 
-      if ( !schema.description.empty() )
-      {
-        const auto sum = spt::output::convert( schema.description );
-        file.write( sum.data(), static_cast<std::streamsize>( sum.size() ) );
-        file.write( "\n", 1 );
-      }
+      spt::output::impl::writeDescription( schema, file );
     }
 
     void writeSchemaExample( const spt::model::Schema& schema, std::ofstream& file )
@@ -65,11 +51,13 @@ namespace
         if ( !example.has_value() ) continue;
         const auto str = std::any_cast<std::string>( example );
         file.write( str.data(), static_cast<std::streamsize>( str.size() ) );
-        line = R"(\end{lstlisting}
+        file.write( "\n\n", 2 );
+      }
+
+      line = R"(\end{lstlisting}
 
 )"sv;
-        file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-      }
+      file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
     }
 
     void writeSchemaAggregationsTable( const spt::model::Schema& schema, std::ofstream& file )
@@ -206,6 +194,7 @@ namespace
 )"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         endtable();
+        writeSchemaExample( schema, file );
         return;
       }
 
@@ -285,11 +274,11 @@ namespace
 
       if ( schema.example.has_value() )
       {
-        const auto ex = spt::output::impl::clean( std::any_cast<std::string>( schema.example ) );
-        line = R"(\hline Example & \texttt{)"sv;
+        const auto ex = std::any_cast<std::string>( schema.example );
+        line = R"(\hline Example & \verb|)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         file.write( ex.data(), static_cast<std::streamsize>( ex.size() ) );
-        line = R"(}. \\
+        line = R"(|. \\
 )"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
       }
@@ -298,11 +287,11 @@ namespace
         const auto& example = schema.examples.front();
         if ( example.has_value() )
         {
-          const auto ex = spt::output::impl::clean( std::any_cast<std::string>( example ) );
-          line = R"(\hline Example & \texttt{)"sv;
+          const auto ex = std::any_cast<std::string>( example );
+          line = R"(\hline Example & \verb|)"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
           file.write( ex.data(), static_cast<std::streamsize>( ex.size() ) );
-          line = R"(}. \\
+          line = R"(|. \\
 )"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         }
@@ -480,8 +469,6 @@ std::string spt::output::impl::schemaTitle( const model::Schema& schema )
 
 void spt::output::impl::schemaExamples( const model::Schema& schema, std::ofstream& file )
 {
-  if ( schema.type == "object" || schema.type == "array" ) return;
-
   if ( schema.example.has_value() )
   {
     auto line = R"(\item \textbf{Example} \verb|)"sv;
@@ -871,6 +858,7 @@ std::filesystem::path spt::output::impl::writeSchema( std::string_view key, cons
   for ( const auto& [name, sc] : schema.properties ) pschema::writeSchema( name, sc, file, schema, 0 );
 
   writeSchemaAggregations( schema, file, false );
+  pschema::writeSchemaExample( schema, file );
 
   file.close();
   return path;

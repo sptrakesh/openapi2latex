@@ -5,6 +5,7 @@
 #include "parser.hpp"
 #include "model/schema.hpp"
 
+#include "log/NanoLog.hpp"
 #include "model/example.hpp"
 
 template <>
@@ -53,6 +54,7 @@ namespace
 
     void parse( model::Schema& m, c4::yml::ConstNodeRef node )
     {
+      static const auto prefix = std::string{ "example: " };
       for ( const auto& child : node.children() )
       {
         if ( child.key() == "$ref" ) child >> m.ref;
@@ -72,13 +74,30 @@ namespace
         if ( child.key() == "xml" ) m.xml = parser::parse<model::XML>( child );
         if ( child.key() == "externalDocs" ) m.externalDocs = parser::parse<model::ExternalDocumentation>( child );
         if ( child.key() == "default" && child.has_val() ) m._default = std::string{ child.val().begin(), child.val().end() };
-        if ( child.key() == "example" && child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+
+        if ( child.key() == "example" )
+        {
+          if ( child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+          else if ( child.is_seq() || child.is_map() )
+          {
+            auto v = ryml::emitrs_yaml<std::string>( child );
+            m.example = v.starts_with( prefix ) ? v.substr( prefix.size() ) : std::move( v );
+          }
+        }
+
         if ( child.key() == "examples" )
         {
+          m.examples.reserve( child.num_children() );
           for ( const auto& ex : child.children() )
           {
-            if ( !ex.has_val() ) continue;
-            m.examples.emplace_back( std::string{ ex.val().begin(), ex.val().end() } );
+            if ( ex.is_map() || ex.is_seq() )
+            {
+              m.examples.emplace_back( ryml::emitrs_yaml<std::string>( ex ) );
+            }
+            else if ( ex.is_val() && ex.has_val() )
+            {
+              m.examples.emplace_back( std::string{ ex.val().begin(), ex.val().end() } );
+            }
           }
         }
 

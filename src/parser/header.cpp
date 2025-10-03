@@ -10,6 +10,7 @@
 template <>
 void spt::parser::parse( model::Header& m, c4::yml::ConstNodeRef node )
 {
+  static const auto prefix = std::string( "example: " );
   for ( const auto& child : node.children() )
   {
     if ( child.key() == "description" ) child >> m.description;
@@ -18,7 +19,16 @@ void spt::parser::parse( model::Header& m, c4::yml::ConstNodeRef node )
     if ( child.key() == "deprecated" ) child >> m.deprecated;
     if ( child.key() == "allowEmptyValue" ) child >> m.allowEmptyValue;
     if ( child.key() == "explode" ) child >> m.explode;
-    if ( child.key() == "example" && child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+
+    if ( child.key() == "example" )
+    {
+      if ( child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+      else if ( child.is_seq() || child.is_map() )
+      {
+        auto v = ryml::emitrs_yaml<std::string>( child );
+        m.example = v.starts_with( prefix ) ? v.substr( prefix.size() ) : std::move( v );
+      }
+    }
 
     if ( child.key() == "examples" )
     {

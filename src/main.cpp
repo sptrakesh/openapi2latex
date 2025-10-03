@@ -102,7 +102,7 @@ namespace
 
       const auto outfile = spt::output::generate( openapi, conf );
       LOG_INFO << "Generated output file " << outfile;
-      LOG_INFO << "Run `pdflatex` multiple times until references are resolved." << outfile;
+      LOG_INFO << "Run `xelatex` multiple times until references are resolved." << outfile;
 
       return 0;
     }
@@ -127,11 +127,12 @@ int main( int argc, char const * const * argv )
       Opt(config.output, "/tmp")["-o"]["--output"]("The fully qualified path for the output LaTeX files.") |
       Opt(config.author, "OpenAPI2LaTeX Generator")["-a"]["--author"]("The author of the document.") |
       Opt(config.footer, "Proprietary and Confidential")["-f"]["--footer"]("The right footer text for the document.") |
+      Opt(config.font, "Helvetica Neue")["-t"]["--font"]("The font to use for the document (default Helvetica Neue).") |
       Opt(config.operationSummary)["-s"]["--operation-summary"]("Use operation summary as title instead of operationId.") |
       Opt(config.cmark)["-m"]["--use-cmark"]("Use cmark to convert info.description to latex.") |
       Opt(console)["-c"]["--console"]("Log to console (default off)") |
       Opt(logLevel, "info")["-l"]["--log-level"]("Log level to use [debug|info|warn|critical] (default info).") |
-      Opt(dir, "/tmp/")["-d"]["--log-dir"]("Log directory (default /tmp/)");
+      Opt(dir, "/tmp/")["-z"]["--log-dir"]("Log directory (default /tmp/)");
 
   if ( auto result = options.parse( clara::Args( argc, argv ) ); !result )
   {

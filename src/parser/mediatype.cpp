@@ -32,7 +32,11 @@ void spt::parser::parse( model::MediaType& m, c4::yml::ConstNodeRef node )
 {
   for ( const auto& child : node.children() )
   {
-    if ( child.key() == "example" && child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+    if ( child.key() == "example" )
+    {
+      if ( child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+      else if ( child.is_seq() || child.is_map() ) m.example = ryml::emitrs_yaml<std::string>( child );
+    }
     if ( child.key() == "schema" ) m.schema = parse<model::Schema>( child );
 
     if ( child.key() == "examples" )

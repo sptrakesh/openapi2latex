@@ -169,6 +169,7 @@ namespace
 
     void writeOperationSummary( const spt::model::Operation& operation, std::string_view id, std::ofstream& file, const spt::model::Configuration& conf )
     {
+      const auto cid = spt::output::impl::clean( operation.operationId );
       if ( operation.summary.empty() )
       {
         auto line = R"(
@@ -176,7 +177,7 @@ namespace
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         file.write( id.data(), static_cast<std::streamsize>( id.size() ) );
         file.write( "}", 1 );
-        file.write( operation.operationId.data(), static_cast<std::streamsize>( operation.operationId.size() ) );
+        file.write( cid.data(), static_cast<std::streamsize>( cid.size() ) );
         line = R"(}
 )"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -186,6 +187,7 @@ namespace
         auto cs = spt::output::convert( operation.summary );
         if ( cs.size() > 80 )
         {
+          LOG_INFO << "Operation summary " << operation.operationId << " exceeds 80 characters.  Using operation id for TOC.";
           auto line = R"(\section[)"sv;
           file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
           file.write( id.data(), static_cast<std::streamsize>( id.size() ) );
@@ -216,7 +218,7 @@ namespace
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         file.write( id.data(), static_cast<std::streamsize>( id.size() ) );
         file.write( "}", 1 );
-        file.write( operation.operationId.data(), static_cast<std::streamsize>( operation.operationId.size() ) );
+        file.write( cid.data(), static_cast<std::streamsize>( cid.size() ) );
         line = R"(}
 \index{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -262,7 +264,8 @@ namespace
       for ( const auto& srv : operation.servers )
       {
         auto url = boost::lexical_cast<std::string>( srv.url );
-        file.write( srv.description.data(), static_cast<std::streamsize>( srv.description.size() ) );
+        const auto desc = spt::output::convert( srv.description );
+        file.write( desc.data(), static_cast<std::streamsize>( desc.size() ) );
         line = R"( & \href{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         file.write( url.data(), static_cast<std::streamsize>( url.size() ) );
@@ -359,7 +362,8 @@ namespace
     {
       if ( !operation.parameters.empty() )
       {
-        auto line = R"(\subsection{\label{)"sv;
+        auto line = R"(
+\subsection{\label{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
         file.write( id.data(), static_cast<std::streamsize>( id.size() ) );
         line = R"(:parameters}Parameters}
@@ -477,7 +481,7 @@ namespace
           {
             for ( const auto& [et, ex] : schema.examples )
             {
-              if ( !ex.value.has_value() ) continue;
+              if ( !ex.value.has_value() && ex.externalValue.empty() ) continue;
 
               start();
               auto line = R"(\textbf{\large )"sv;
@@ -499,9 +503,27 @@ namespace
                 file.write( "\n\n", 2 );
               }
 
-              const auto value = std::any_cast<std::string>( ex.value );
-              file.write( value.data(), static_cast<std::streamsize>( value.size() ) );
-              file.write( "\n\n", 2 );
+              if ( ex.value.has_value() )
+              {
+                line = R"(\begin{lstlisting}
+  )"sv;
+                file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+                const auto value = std::any_cast<std::string>( ex.value );
+                file.write( value.data(), static_cast<std::streamsize>( value.size() ) );
+                line = R"(\end{lstlisting}
+
+  )";
+                file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+              }
+
+              if ( !ex.externalValue.empty() )
+              {
+                line = R"(See example at \url{)"sv;
+                file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
+                const auto v = boost::lexical_cast<std::string>( ex.externalValue );
+                file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
+                file.write( "}\n", 2 );
+              }
             }
           }
         }
@@ -533,13 +555,14 @@ See section \ref{codesamples:)"sv;
       boost::algorithm::replace_all( path, "}", "\\}" );
 
       const auto id = std::format( "operation::{}", operation.operationId );
+      const auto cid = spt::output::impl::clean( operation.operationId );
 
       // Only show reference for operations that have been added with another tag
       if ( oplabels.contains( id ) )
       {
         auto line = R"(\section*{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-        file.write( operation.operationId.data(), static_cast<std::streamsize>( operation.operationId.size() ) );
+        file.write( cid.data(), static_cast<std::streamsize>( cid.size() ) );
         line = R"(}
 \index{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -648,7 +671,8 @@ void spt::output::impl::tags( const std::filesystem::path& parent, const spt::mo
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
     file.write( tag.name.data(), static_cast<std::streamsize>( tag.name.size() ) );
     file.write( "}", 1 );
-    file.write( tag.name.data(), static_cast<std::streamsize>( tag.name.size() ) );
+    const auto name = clean( tag.name );
+    file.write( name.data(), static_cast<std::streamsize>( name.size() ) );
     line = R"(}
 \index{)"sv;
     file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -660,7 +684,7 @@ void spt::output::impl::tags( const std::filesystem::path& parent, const spt::mo
       line = R"(\begin{quote}
 )"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
-      auto data = spt::output::convert( tag.description );
+      auto data = convert( tag.description );
       file.write( data.data(), static_cast<std::streamsize>( data.size() ) );
       line = R"(\end{quote}
 )"sv;

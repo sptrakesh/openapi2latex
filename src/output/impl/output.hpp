@@ -179,11 +179,11 @@ namespace spt::output::impl
 
     for ( const auto& any : param.schema->examples )
     {
-      line = R"(\item \textit{Examples} - )"sv;
+      line = R"(\item \textit{Examples} - \verb|)"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
       const auto v = std::any_cast<std::string>( any );
       file.write( v.data(), static_cast<std::streamsize>( v.size() ) );
-      file.write( "\n", 1 );
+      file.write( "|\n", 2 );
     }
 
     if ( param.schema->_default.has_value() )

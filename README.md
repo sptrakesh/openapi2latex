@@ -12,24 +12,33 @@ The rationale for this process is to be able to generate a PDF document that can
 parties, when the source specifications are protected by access control (and where the said parties do not need to
 be provided with the access credentials).
 
-The workflow is to use this process to generate the target LaTeX file, and run `pdflatex` a few times (usually
+The workflow is to use this process to generate the target LaTeX file, and run `xelatex` a few times (usually
 two times to get cross-references resolved) for the output PDF document.  Also run `makeindex` to generate the
 document *index* if desired.
 
 ```shell
 <path to>/oa2tex -i <path to openapi.yaml> -o <path to output directory> -c --use-cmark
 cd <path to output directory>
-pdflatex -interaction=nonstopmode openapi
+xelatex -interaction=nonstopmode openapi
 makeindex openapi
-pdflatex -interaction=nonstopmode openapi
+xelatex -interaction=nonstopmode openapi
 ```
 
 ## Structure
 The generated LaTeX files have the following structure (you can of course modify the output files as desired):
 
+* **Preamble** - Preamble for the document (`<path to output>/preamble.tex`).  Sets up various packages that are used.
+  Edit the file as desired, especially the *main font* for the document.  The generator sets the main font to
+  *Helvetica Neue* (`\setmainfont[Ligatures=TeX,Numbers=OldStyle]{Helvetica Neue}`).  Change to any system
+  supported font as desired (through the command line option or by editing file as desired after generating the
+  latex sources).
+  * Serif fonts like *Helvetica*, *Verdana* etc. are good for viewing the PDF on screen.
+  * Use traditional print friendly fonts like the LaTeX default *Computer Modern*, *Times New Roman* etc if
+    the primary purpose of the output PDF is print.
 * **Frontmatter** - Titlepage and table of contents.
 * **Mainmatter** - Contains two or three parts.
   * **Info** - The *info* object is presented as the first chapter. 
+  * **Examples** - Any examples that are defined in the `openapi.components.examples` section.
   * **Parameters** - Any parameters that are *referenced* from the various API endpoints. Will only list referenced
     parameters, not those that are defined *in-line*.
   * **Endpoints** - Part with the path operations grouped by tags. Each tag is presented in a *chapter*.
@@ -47,8 +56,6 @@ See [openapi.pdf](openapi.pdf) for the PDF generated from the sample
 [petstore](https://github.com/SLdragon/example-openapi-spec/blob/main/petstore-official.yaml)
 specifications.  Note that the petstore sample has a CommonMark table in the information, which
 the embedded converter does not support.  This sample was generated using the `cmark` option.
-The `cmark` generated latex table has some issue, and I had to run latex in `nonstopmode`
-for the PDF to be generated.
 
 ## Usage
 The generator is written in C++ and has a dependency on the [Boost](https://boost.org/) libraries.
@@ -65,6 +72,8 @@ The following options are supported by the [main.cpp](src/main.cpp) program:
   a dedicated temporary directory.
 * `--author | -a` - The author credit to show on the titlepage.
 * `--footer | -f` - The right side footer text to display for the document.
+* `--font | -t` - The font to use for the output document.  Default *Helvetica Neue*.  Note the font must be available
+  on the system.
 * `--operation-summary | -s` - A flag to indicate that **Operation** *summary* should be used as section headings instead of *operationId*.
 * `--use-cmark | -m` - Use [cmark](https://github.com/commonmark/cmark) to convert `info.description` to latex.
   Recommended option, since the description can be quite long and complicated, and `cmark` should have much more 

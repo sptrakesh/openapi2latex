@@ -8,6 +8,7 @@
 template <>
 void spt::parser::parse( model::Parameter& m, c4::yml::ConstNodeRef node )
 {
+  static const auto prefix = std::string( "example: " );
   for ( const auto& child : node.children() )
   {
     if ( child.key() == "$ref" ) child >> m.ref;
@@ -20,7 +21,17 @@ void spt::parser::parse( model::Parameter& m, c4::yml::ConstNodeRef node )
     if ( child.key() == "allowEmptyValue" ) child >> m.allowEmptyValue;
     if ( child.key() == "explode" ) child >> m.explode;
     if ( child.key() == "allowReserved" ) child >> m.allowReserved;
-    if ( child.key() == "example" && child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+
+    if ( child.key() == "example" )
+    {
+      if ( child.has_val() ) m.example = std::string{ child.val().begin(), child.val().end() };
+      else if ( child.is_seq() || child.is_map() )
+      {
+        auto v = ryml::emitrs_yaml<std::string>( child );
+        m.example = v.starts_with( prefix ) ? v.substr( prefix.size() ) : std::move( v );
+      }
+    }
+
     if ( child.key() == "examples" )
     {
       for ( const auto& ex : child.children() )
@@ -29,6 +40,7 @@ void spt::parser::parse( model::Parameter& m, c4::yml::ConstNodeRef node )
         m.examples.try_emplace( std::string{ key }, parse<model::Example>( ex ) );
       }
     }
+
     if ( child.key() == "schema" ) m.schema = parse<model::Schema>( child );
   }
 }
