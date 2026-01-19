@@ -102,8 +102,8 @@ A few extensions to the specifications developed by [Redocly](https://redocly.co
 Standard `cmake` build system.
 
 ```shell
-git clone https://github.com/sptrakesh/openapi-latex.git
-cd openapi-latex
+git clone https://github.com/sptrakesh/openapi2latex.git
+cd openapi2latex
 cmake -DCMAKE_PREFIX_PATH=/usr/local/boost \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=/usr/local/spt \
