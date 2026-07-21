@@ -6,12 +6,8 @@
 #include "log/NanoLog.hpp"
 #include "util/split.hpp"
 
-#if defined(__unix__) && !defined(__APPLE__)
-#include <fmt/format.h>
-#include <fmt/ranges.h>
-#else
 #include <format>
-#endif
+#include <print>
 
 using std::operator ""s;
 using std::operator ""sv;
@@ -387,11 +383,7 @@ namespace
 
       if ( !schema.enumeration.empty() )
       {
-#if defined(__unix__) && !defined(__APPLE__)
-        auto v = fmt::format( "{:n}", schema.enumeration );
-#else
         auto v = std::format( "{:n}", schema.enumeration );
-#endif
         boost::algorithm::replace_all( v, "\"", "" );
         line = R"(\hline Enum & Allowed values - \texttt{)"sv;
         file.write( line.data(), static_cast<std::streamsize>( line.size() ) );
@@ -656,11 +648,7 @@ void spt::output::impl::writeSchemaForAggregation( const model::Schema& schema, 
         vec.emplace_back( std::any_cast<std::string>( ex ) );
       }
 
-#if defined(__unix__) && !defined(__APPLE__)
-      auto v = fmt::format( "{:n}", vec );
-#else
       auto v = std::format( "{:n}", vec );
-#endif
       boost::algorithm::replace_all( v, "\"", "" );
       v = clean( v );
       line = R"(\item \textbf{Examples} - \texttt{)"sv;

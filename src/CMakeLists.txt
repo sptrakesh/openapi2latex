@@ -15,12 +15,11 @@ if (BUILD_TESTING)
   target_link_libraries(oa-lib PRIVATE Boost::url ryml::ryml)
 endif()
 
-add_executable(oa2tex ${oa2l_SRCS} )
+add_executable(oa2tex ${oa2l_SRCS})
 
 if (UNIX AND NOT APPLE)
-  target_link_libraries(oa2tex PRIVATE Boost::url ryml::ryml fmt::fmt)
-else ()
-  target_link_libraries(oa2tex PRIVATE Boost::url ryml::ryml)
+  target_compile_definitions(oa2tex PRIVATE RYML_WITH_LEGACY_OPERATORS=1)
 endif (UNIX AND NOT APPLE)
+target_link_libraries(oa2tex PRIVATE Boost::url ryml::ryml)
 
 install(TARGETS oa2tex DESTINATION bin)

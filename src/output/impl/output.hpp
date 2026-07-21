@@ -13,12 +13,8 @@
 #include <fstream>
 #include <boost/algorithm/string/replace.hpp>
 
-#if defined(__unix__) && !defined(__APPLE__)
-#include <fmt/format.h>
-#include <fmt/ranges.h>
-#else
 #include <format>
-#endif
+#include <print>
 
 namespace spt::output::impl
 {
@@ -120,11 +116,7 @@ namespace spt::output::impl
 
     if ( !param.schema->enumeration.empty() )
     {
-#if defined(__unix__) && !defined(__APPLE__)
-      auto names = fmt::format( "{:n}", param.schema->enumeration );
-#else
       auto names = std::format( "{:n}", param.schema->enumeration );
-#endif
       boost::algorithm::replace_all( names, "\"", "" );
       line = R"(\item \textit{enum} - Allowed values )"sv;
       file.write( line.data(), static_cast<std::streamsize>( line.size() ) );

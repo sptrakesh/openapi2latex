@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.50 FATAL_ERROR)
 
 if (POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
@@ -63,10 +63,6 @@ find_package(Threads REQUIRED)
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 endif (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-if (UNIX AND NOT APPLE)
-  find_package(fmt REQUIRED)
-endif (UNIX AND NOT APPLE)
 
 include_directories(
   ${Boost_INCLUDE_DIR}
